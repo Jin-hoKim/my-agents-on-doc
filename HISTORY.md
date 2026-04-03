@@ -1,39 +1,77 @@
-# 변경 이력
+# HISTORY.md — My Agents on Dock
 
 ## 2026-04-03
 
-### 초기 구현 — Team 모드 agents.json 기반 동적 팀 캐릭터 구성
+### Phase 1: 프로젝트 기반 구축 및 모델 정의
 
-Solo 모드(my-agent-on-dock)를 참고하여 Team 모드 별도 프로젝트 신규 생성.
+- **Package.swift** 생성: macOS 14.0+, Lottie 의존성 설정
+- **Models/TeamAgent.swift** 생성: 팀 에이전트 데이터 모델 (id, model, name, roleDescription, emoji, isActive, pid)
+- **Models/AgentRole.swift** 생성: 역할별 이모지 매핑 (leader→📋, frontend→⌨️, backend→💻 등)
+- **Models/AgentState.swift** 생성: idle/active/error 상태 enum
+- **Models/TeamConfiguration.swift** 생성: agents.json 파싱 구조 (AgentDefinition, ConnectionStatus)
 
-#### 생성된 파일
+### Phase 2: 핵심 서비스 구현
 
-**프로젝트 기반**
-- `Package.swift` — macOS 14.0+, Lottie 의존성
-- `MyAgentsOnDock/Info.plist` — LSUIElement=true, 번들 ID: com.jhkim.MyAgentsOnDock
-- `MyAgentsOnDock/MyAgentsOnDock.entitlements` — App Sandbox + Security-Scoped Bookmarks
+- **Services/AppSettings.swift** 생성: UserDefaults 기반 설정 (characterSize, isPanelVisible, monitorInterval)
+- **Services/BookmarkService.swift** 생성: Security-Scoped Bookmarks로 프로젝트 폴더 접근 권한 관리
+  - NSOpenPanel 폴더 선택
+  - 북마크 영구 저장/복원
+  - startAccessingSecurityScopedResource() 관리
+- **Services/AgentsConfigService.swift** 생성: agents.json 파싱 + FSEvents 감시
+  - "이름 — 설명" 파싱 (em dash, en dash, " - " 구분자 지원)
+  - DispatchSource.makeFileSystemObjectSource로 파일 변경 감지
+  - debounce 0.5초 적용
+  - 역할 순서: leader → frontend → backend → database → designer → qa → devops → 기타
+- **Services/ProcessMonitorService.swift** 생성: Claude CLI 프로세스 감지
+  - 3초 간격 폴링 (설정 변경 가능)
+  - ps aux 실행하여 claude 프로세스 감지
+  - --role 인자로 역할 매칭
+- **Services/TeamPanelManager.swift** 생성: 멀티 캐릭터 NSPanel 관리
+  - agents 수에 따른 동적 패널 너비 계산
+  - Dock 위치 감지 (하단/왼쪽/오른쪽)
+  - 화면 변경 자동 위치 조정
 
-**Models/**
-- `TeamAgent.swift` — 팀 에이전트 모델 (id, model, name, roleDescription, emoji, isActive, pid)
-- `AgentRole.swift` — 역할별 이모지 매핑 (leader/frontend/backend/database/designer/qa/devops 등)
-- `AgentState.swift` — idle/active/error 상태 머신
-- `TeamConfiguration.swift` — agents.json 디코딩 구조 + description 파싱 로직
+### Phase 3: 캐릭터 뷰 구현
 
-**Services/**
-- `AppSettings.swift` — characterSize, isPanelVisible, monitorInterval 설정
-- `BookmarkService.swift` — NSOpenPanel + Security-Scoped Bookmark 저장/복원
-- `AgentsConfigService.swift` — agents.json 파싱 + FSEvents 감시 (debounce 0.5초)
-- `ProcessMonitorService.swift` — Claude CLI 프로세스 감지 (ps aux + 3초 폴링)
-- `TeamPanelManager.swift` — 동적 너비 NSPanel (에이전트 수에 따라 1행/2행)
+- **Views/AgentCharacterView.swift** 생성: 개별 에이전트 캐릭터 뷰
+  - 이모지 + 원형 배경 그래디언트
+  - 활성 시 초록색 계열, 대기 시 회색 계열
+  - 활성 상태 인디케이터 (초록 점)
+  - 모델 뱃지 (OP/SN/HK, 색상 구분)
+  - 이름 라벨 + 상태 텍스트
+  - active 시 스케일 애니메이션 (1.0→1.1)
+- **Views/TeamDockView.swift** 생성: 멀티 캐릭터 Dock 뷰
+  - HStack + ScrollView로 에이전트 나열
+  - 빈 상태 플레이스홀더 표시
 
-**Views/**
-- `AgentCharacterView.swift` — 개별 에이전트 캐릭터 (이모지 + 상태 인디케이터 + 모델 뱃지)
-- `TeamDockView.swift` — HStack 다중 캐릭터 배치 (자동 2행 전환)
-- `SetupView.swift` — 프로젝트 연결 + agents.json 미리보기 + 형식 가이드
-- `MenuBarView.swift` — 팀 상태 요약 + 에이전트 목록
-- `SettingsView.swift` — 캐릭터 크기 / 모니터 간격 / 프로젝트 변경
+### Phase 4: 설정 UI 구현
 
-**앱 진입점**
-- `AppDelegate.swift` — 서비스 초기화 체인 (bookmark → agents → panel → monitor)
-- `MyAgentsOnDockApp.swift` — MenuBarExtra (person.3.fill 아이콘)
-- `main.swift` — MyAgentsOnDockApp.main()
+- **Views/SetupView.swift** 생성: 초기 설정 / 프로젝트 연결 뷰
+  - 프로젝트 폴더 선택 (NSOpenPanel)
+  - agents.json 상태 표시 (✅/❌/⚠️)
+  - 팀 구성 미리보기 테이블 (이모지|역할명|이름|모델|설명)
+  - agents.json 형식 가이드 (오류 시)
+  - 팀 연결/해제 버튼
+- **Views/SettingsView.swift** 생성: 설정 뷰
+  - 팀 프로젝트 연결 상태
+  - 캐릭터 크기 슬라이더
+  - 프로세스 감시 간격 조정
+  - 팀 구성원 목록 + 활성 상태
+- **Views/MenuBarView.swift** 생성: 메뉴바 드롭다운
+  - 활성 에이전트 수/전체 수 표시
+  - 에이전트별 상태 리스트 (이모지, 이름, 모델 뱃지, 활성 표시)
+  - 팀 프로젝트 연결 / 설정 / 종료
+
+### Phase 5: 앱 통합
+
+- **AppDelegate.swift** 생성: 앱 생명주기 관리
+  - BookmarkService → AgentsConfigService → ProcessMonitorService 초기화 체인
+  - 저장된 프로젝트 없으면 SetupView 자동 표시
+  - openSetup / openSettings 알림 처리
+  - 앱 종료 시 리소스 정리
+- **MyAgentsOnDockApp.swift** 생성: 메인 앱 구조체
+  - MenuBarExtra (person.3.fill 아이콘)
+  - NSApplicationDelegateAdaptor로 AppDelegate 연결
+- **Info.plist** 생성: 번들 설정 (LSUIElement=true, com.jhkim.MyAgentsOnDock)
+- **MyAgentsOnDock.entitlements** 생성: App Sandbox 설정
+  - app-sandbox, network.client, files.user-selected.read-only, files.bookmarks.app-scope

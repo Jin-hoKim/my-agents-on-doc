@@ -1,6 +1,7 @@
 import SwiftUI
 
 // 메인 앱 구조체
+@main
 struct MyAgentsOnDockApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 

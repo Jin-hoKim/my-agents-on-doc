@@ -3,21 +3,13 @@ import Foundation
 // 역할별 이모지 매핑
 enum AgentRole {
     static let emojiMap: [String: String] = [
-        "leader": "📋",
+        "leader":   "📋",
         "frontend": "⌨️",
-        "backend": "💻",
+        "backend":  "💻",
         "database": "🗄️",
         "designer": "🎨",
-        "qa": "🔍",
-        "devops": "🔧",
-        "pm": "📊",
-        "data": "📈",
-        "security": "🔒",
-        "mobile": "📱",
-        "ai": "🤖",
-        "infra": "🏗️",
-        "test": "🧪",
-        "docs": "📝",
+        "qa":       "🔍",
+        "devops":   "🔧"
     ]
     static let defaultEmoji = "🤖"
 

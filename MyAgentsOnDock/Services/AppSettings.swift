@@ -6,7 +6,7 @@ import Combine
 class AppSettings: ObservableObject {
     static let shared = AppSettings()
 
-    // 캐릭터 크기
+    // 캐릭터 크기 설정
     @AppStorage("characterSize") var characterSize: Double = 60.0
 
     // 패널 표시 여부
@@ -15,9 +15,10 @@ class AppSettings: ObservableObject {
     // 프로세스 감시 간격 (초)
     @AppStorage("monitorInterval") var monitorInterval: Double = 3.0
 
-    // 캐릭터 크기 범위
+    // 마지막 선택 프로젝트 경로 (표시용)
+    @AppStorage("lastProjectPath") var lastProjectPath: String = ""
+
+    // 캐릭터 사이즈 범위
     static let minSize: Double = 40.0
     static let maxSize: Double = 100.0
-    static let minInterval: Double = 1.0
-    static let maxInterval: Double = 10.0
 }

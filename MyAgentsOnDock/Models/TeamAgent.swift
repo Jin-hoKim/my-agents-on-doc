@@ -1,42 +1,42 @@
 import Foundation
 
-// 팀 에이전트 모델
+// 팀 에이전트 데이터 모델
 struct TeamAgent: Identifiable, Codable, Equatable {
     let id: String              // 역할명 (agents.json key)
     let model: String           // opus/sonnet/haiku
     let name: String            // description에서 추출한 이름
     let roleDescription: String // — 뒤의 역할 설명
     let emoji: String           // 역할별 매핑 이모지
-    var isActive: Bool          // 현재 실행 중 여부
-    var pid: String?            // 프로세스 ID
+    var isActive: Bool = false  // 현재 실행 중 여부
+    var pid: String? = nil      // 프로세스 ID
 
-    init(id: String, model: String, name: String, roleDescription: String, emoji: String, isActive: Bool = false, pid: String? = nil) {
-        self.id = id
-        self.model = model
-        self.name = name
-        self.roleDescription = roleDescription
-        self.emoji = emoji
-        self.isActive = isActive
-        self.pid = pid
-    }
-
-    // 모델 약어 (뱃지 표시용)
+    // 모델 약어 (뱃지용)
     var modelBadge: String {
         switch model.lowercased() {
-        case "opus": return "O"
-        case "sonnet": return "S"
-        case "haiku": return "H"
-        default: return model.prefix(1).uppercased()
+        case "opus":   return "OP"
+        case "sonnet": return "SN"
+        case "haiku":  return "HK"
+        default:       return String(model.prefix(2)).uppercased()
         }
     }
 
-    // 모델 색상
-    var modelColor: String {
+    // 모델 표시명
+    var modelDisplayName: String {
         switch model.lowercased() {
-        case "opus": return "purple"
-        case "sonnet": return "blue"
-        case "haiku": return "green"
-        default: return "gray"
+        case "opus":   return "Claude Opus"
+        case "sonnet": return "Claude Sonnet"
+        case "haiku":  return "Claude Haiku"
+        default:       return "Claude \(model.capitalized)"
         }
+    }
+
+    static func == (lhs: TeamAgent, rhs: TeamAgent) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.model == rhs.model &&
+        lhs.name == rhs.name &&
+        lhs.roleDescription == rhs.roleDescription &&
+        lhs.emoji == rhs.emoji &&
+        lhs.isActive == rhs.isActive &&
+        lhs.pid == rhs.pid
     }
 }

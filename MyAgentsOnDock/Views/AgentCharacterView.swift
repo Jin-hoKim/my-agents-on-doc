@@ -3,26 +3,25 @@ import SwiftUI
 // 개별 에이전트 캐릭터 뷰
 struct AgentCharacterView: View {
     let agent: TeamAgent
-    let characterSize: Double
+    let size: CGFloat
 
     @State private var isAnimating = false
 
     var body: some View {
         VStack(spacing: 3) {
-            // 캐릭터 이모지 + 배경
             ZStack {
                 // 배경 원형 그래디언트
                 Circle()
-                    .fill(backgroundGradient)
-                    .frame(width: characterSize * 0.85, height: characterSize * 0.85)
+                    .fill(backgroundGradient(isActive: agent.isActive))
+                    .frame(width: size * 0.85, height: size * 0.85)
                     .shadow(
                         color: agent.isActive ? .green.opacity(0.5) : .black.opacity(0.15),
                         radius: agent.isActive ? 10 : 3
                     )
 
-                // 이모지
+                // 이모지 캐릭터
                 Text(agent.emoji)
-                    .font(.system(size: characterSize * 0.4))
+                    .font(.system(size: size * 0.4))
                     .scaleEffect(isAnimating && agent.isActive ? 1.1 : 1.0)
                     .animation(
                         agent.isActive
@@ -36,7 +35,7 @@ struct AgentCharacterView: View {
                     .fill(agent.isActive ? Color.green : Color.gray.opacity(0.4))
                     .frame(width: 8, height: 8)
                     .shadow(color: agent.isActive ? .green : .clear, radius: 3)
-                    .offset(x: characterSize * 0.33, y: -characterSize * 0.33)
+                    .offset(x: size * 0.33, y: -size * 0.33)
 
                 // 모델 뱃지
                 Text(agent.modelBadge)
@@ -44,46 +43,46 @@ struct AgentCharacterView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 3)
                     .padding(.vertical, 1)
-                    .background(modelBadgeColor)
+                    .background(modelBadgeColor(model: agent.model))
                     .clipShape(Capsule())
-                    .offset(x: characterSize * 0.3, y: characterSize * 0.3)
+                    .offset(x: -size * 0.3, y: -size * 0.33)
             }
 
             // 에이전트 이름
-            Text(agent.name)
+            Text(agent.name.isEmpty ? agent.id : agent.name)
                 .font(.system(size: 9, weight: .medium))
-                .foregroundColor(.primary.opacity(0.8))
+                .foregroundColor(agent.isActive ? .primary : .secondary)
                 .lineLimit(1)
-                .frame(maxWidth: characterSize + 10)
+                .truncationMode(.tail)
+                .frame(maxWidth: size + 4)
 
-            // 역할 상태
-            Text(agent.isActive ? "작업 중" : agent.id)
-                .font(.system(size: 8))
-                .foregroundColor(agent.isActive ? .green : .secondary)
-                .lineLimit(1)
+            // 상태 텍스트
+            Text(agent.isActive ? "작업 중" : "대기 중")
+                .font(.system(size: 7))
+                .foregroundColor(agent.isActive ? .green : .secondary.opacity(0.6))
         }
-        .frame(width: characterSize + 16, height: characterSize + 34)
+        .frame(width: size + 4, height: size + 38)
         .onAppear {
             isAnimating = agent.isActive
         }
         .onChange(of: agent.isActive) { _, active in
-            withAnimation(.spring(duration: 0.3)) {
+            withAnimation(.spring) {
                 isAnimating = active
             }
         }
     }
 
     // 배경 그래디언트
-    private var backgroundGradient: some ShapeStyle {
-        if agent.isActive {
+    private func backgroundGradient(isActive: Bool) -> LinearGradient {
+        if isActive {
             return LinearGradient(
-                colors: [Color.green.opacity(0.2), Color.green.opacity(0.4)],
+                colors: [Color.green.opacity(0.25), Color.green.opacity(0.45)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         } else {
             return LinearGradient(
-                colors: [Color.white.opacity(0.1), Color.white.opacity(0.2)],
+                colors: [Color.white.opacity(0.08), Color.white.opacity(0.18)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -91,12 +90,12 @@ struct AgentCharacterView: View {
     }
 
     // 모델 뱃지 색상
-    private var modelBadgeColor: Color {
-        switch agent.model.lowercased() {
-        case "opus": return .purple
+    private func modelBadgeColor(model: String) -> Color {
+        switch model.lowercased() {
+        case "opus":   return .purple
         case "sonnet": return .blue
-        case "haiku": return .green
-        default: return .gray
+        case "haiku":  return .teal
+        default:       return .gray
         }
     }
 }

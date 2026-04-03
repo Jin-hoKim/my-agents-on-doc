@@ -4,22 +4,27 @@ import SwiftUI
 struct MenuBarView: View {
     @ObservedObject private var configService = AgentsConfigService.shared
     @ObservedObject private var settings = AppSettings.shared
-    @ObservedObject private var bookmarkService = BookmarkService.shared
+
+    private var activeCount: Int {
+        configService.agents.filter { $0.isActive }.count
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             // 헤더
             HStack {
-                Text("👥")
+                Text("🤖")
                     .font(.title3)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("My Agents on Dock")
                         .font(.headline)
                     HStack(spacing: 4) {
                         Circle()
-                            .fill(configService.connectionStatus.isConnected ? Color.green : Color.orange)
+                            .fill(configService.connectionStatus.isConnected ? Color.green : Color.gray)
                             .frame(width: 6, height: 6)
-                        Text(configService.connectionStatus.displayText)
+                        Text(configService.connectionStatus.isConnected
+                            ? "\(activeCount)/\(configService.agents.count) 에이전트 활성"
+                            : configService.connectionStatus.displayText)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -31,50 +36,46 @@ struct MenuBarView: View {
 
             Divider()
 
-            // 팀 상태 요약
+            // 에이전트 목록
             if !configService.agents.isEmpty {
-                HStack {
-                    let activeCount = configService.agents.filter { $0.isActive }.count
-                    Text("활성: \(activeCount) / \(configService.agents.count)명")
-                        .font(.caption.weight(.medium))
-                        .foregroundColor(activeCount > 0 ? .green : .secondary)
-                    Spacer()
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 6)
+                VStack(spacing: 0) {
+                    ForEach(configService.agents) { agent in
+                        HStack {
+                            Text(agent.emoji)
+                                .font(.subheadline)
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(agent.name.isEmpty ? agent.id : agent.name)
+                                    .font(.subheadline)
+                                Text(agent.id)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            // 모델 뱃지
+                            Text(agent.modelBadge)
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 2)
+                                .background(modelBadgeColor(agent.model))
+                                .clipShape(Capsule())
 
-                Divider()
-
-                // 에이전트 목록
-                ForEach(configService.agents) { agent in
-                    HStack(spacing: 8) {
-                        Text(agent.emoji)
-                            .font(.subheadline)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(agent.name)
-                                .font(.caption.weight(.medium))
-                            Text(agent.id)
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                        Spacer()
-                        HStack(spacing: 4) {
+                            // 활성 상태
                             Circle()
-                                .fill(agent.isActive ? Color.green : Color.gray.opacity(0.4))
-                                .frame(width: 6, height: 6)
-                            Text(agent.isActive ? "작업 중" : "대기")
-                                .font(.caption2)
-                                .foregroundColor(agent.isActive ? .green : .secondary)
+                                .fill(agent.isActive ? Color.green : Color.gray.opacity(0.3))
+                                .frame(width: 7, height: 7)
+                                .shadow(color: agent.isActive ? .green : .clear, radius: 2)
                         }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 5)
                 }
 
                 Divider()
             }
 
-            // 메뉴 항목
+            // 메뉴 항목들
             VStack(spacing: 0) {
                 // Dock 캐릭터 표시 토글
                 Toggle(isOn: $settings.isPanelVisible) {
@@ -91,36 +92,42 @@ struct MenuBarView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 6)
 
-                Divider().padding(.vertical, 4)
+                Divider().padding(.vertical, 2)
 
-                // 프로젝트 연결 설정
-                MenuBarButton(
-                    icon: "folder.badge.gearshape",
-                    title: "팀 프로젝트 설정"
-                ) {
+                // 팀 프로젝트 설정
+                MenuButton(icon: "folder.badge.plus", title: "팀 프로젝트 연결") {
                     NotificationCenter.default.post(name: .openSetup, object: nil)
                 }
 
                 // 설정
-                MenuBarButton(icon: "gearshape.fill", title: "환경설정") {
+                MenuButton(icon: "gearshape.fill", title: "설정") {
                     NotificationCenter.default.post(name: .openSettings, object: nil)
                 }
 
-                Divider().padding(.vertical, 4)
+                Divider().padding(.vertical, 2)
 
                 // 종료
-                MenuBarButton(icon: "power", title: "종료") {
+                MenuButton(icon: "power", title: "종료") {
                     NSApplication.shared.terminate(nil)
                 }
             }
             .padding(.vertical, 4)
         }
-        .frame(width: 300)
+        .frame(width: 280)
+    }
+
+    private func modelBadgeColor(_ model: String) -> Color {
+        switch model.lowercased() {
+        case "opus":   return .purple
+        case "sonnet": return .blue
+        case "haiku":  return .teal
+        default:       return .gray
+        }
     }
 }
 
-// 메뉴바 버튼 컴포넌트
-struct MenuBarButton: View {
+// 메뉴 버튼 컴포넌트
+struct MenuButton: View {
     let icon: String
     let title: String
     var shortcut: String? = nil
@@ -147,9 +154,4 @@ struct MenuBarButton: View {
         }
         .buttonStyle(.plain)
     }
-}
-
-extension Notification.Name {
-    static let openSetup = Notification.Name("openSetup")
-    static let openSettings = Notification.Name("openSettings")
 }

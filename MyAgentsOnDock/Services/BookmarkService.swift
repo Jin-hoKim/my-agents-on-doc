@@ -1,95 +1,101 @@
 import AppKit
 import Foundation
 
-// Security-Scoped Bookmarks를 통한 프로젝트 디렉토리 접근 관리
+// Security-Scoped Bookmarks로 프로젝트 폴더 접근 권한 관리
 @MainActor
 class BookmarkService: ObservableObject {
     static let shared = BookmarkService()
 
-    private let bookmarkKey = "projectDirectoryBookmark"
-    private var accessedURL: URL?
+    private let bookmarkKey = "projectBookmark"
+    private var accessingURL: URL?
 
-    @Published var projectURL: URL?
-    @Published var isAccessing: Bool = false
+    @Published var projectURL: URL? = nil
 
-    // 앱 시작 시 저장된 bookmark 복원 시도
-    func restoreBookmark() {
+    init() {
+        resolveBookmark()
+    }
+
+    // NSOpenPanel로 프로젝트 폴더 선택
+    func selectProjectFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "선택"
+        panel.message = "Claude Code 팀 프로젝트 폴더를 선택하세요"
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        saveBookmark(for: url)
+    }
+
+    // 북마크 저장
+    private func saveBookmark(for url: URL) {
+        // 기존 접근 중인 URL 해제
+        stopAccessing()
+
+        do {
+            let bookmark = try url.bookmarkData(
+                options: .withSecurityScope,
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+            UserDefaults.standard.set(bookmark, forKey: bookmarkKey)
+            AppSettings.shared.lastProjectPath = url.path
+            startAccessing(url: url)
+        } catch {
+            print("[BookmarkService] 북마크 저장 실패: \(error)")
+        }
+    }
+
+    // 저장된 북마크 복원
+    private func resolveBookmark() {
         guard let bookmarkData = UserDefaults.standard.data(forKey: bookmarkKey) else { return }
 
-        var isStale = false
         do {
+            var isStale = false
             let url = try URL(
                 resolvingBookmarkData: bookmarkData,
                 options: .withSecurityScope,
                 relativeTo: nil,
                 bookmarkDataIsStale: &isStale
             )
-
             if isStale {
-                // 오래된 bookmark → 재선택 필요
-                UserDefaults.standard.removeObject(forKey: bookmarkKey)
-                return
-            }
-
-            if url.startAccessingSecurityScopedResource() {
-                accessedURL = url
-                projectURL = url
-                isAccessing = true
+                // 북마크가 만료된 경우 재저장
+                saveBookmark(for: url)
+            } else {
+                startAccessing(url: url)
             }
         } catch {
+            print("[BookmarkService] 북마크 복원 실패: \(error)")
             UserDefaults.standard.removeObject(forKey: bookmarkKey)
         }
     }
 
-    // NSOpenPanel로 프로젝트 폴더 선택
-    func selectProjectDirectory() {
-        let panel = NSOpenPanel()
-        panel.title = "프로젝트 폴더 선택"
-        panel.message = "Claude Code 팀이 구성된 프로젝트 폴더를 선택하세요"
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.canCreateDirectories = false
-
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-
-        // 기존 접근 해제
-        stopAccessing()
-
-        do {
-            let bookmarkData = try url.bookmarkData(
-                options: .withSecurityScope,
-                includingResourceValuesForKeys: nil,
-                relativeTo: nil
-            )
-            UserDefaults.standard.set(bookmarkData, forKey: bookmarkKey)
-
-            if url.startAccessingSecurityScopedResource() {
-                accessedURL = url
-                projectURL = url
-                isAccessing = true
-            }
-        } catch {
-            // bookmark 생성 실패 시 직접 URL 사용 (개발 환경)
-            projectURL = url
+    // Security-Scoped Resource 접근 시작
+    private func startAccessing(url: URL) {
+        guard url.startAccessingSecurityScopedResource() else {
+            print("[BookmarkService] Security-Scoped Resource 접근 실패")
+            return
         }
+        accessingURL = url
+        projectURL = url
     }
 
-    // 프로젝트 연결 해제
+    // Security-Scoped Resource 접근 중단
     func stopAccessing() {
-        accessedURL?.stopAccessingSecurityScopedResource()
-        accessedURL = nil
-        isAccessing = false
-        projectURL = nil
-        UserDefaults.standard.removeObject(forKey: bookmarkKey)
+        accessingURL?.stopAccessingSecurityScopedResource()
+        accessingURL = nil
     }
 
-    // agents.json 경로 반환
-    var agentsConfigURL: URL? {
-        projectURL?.appendingPathComponent("team/agents.json")
+    // 북마크 삭제 (프로젝트 연결 해제)
+    func clearBookmark() {
+        stopAccessing()
+        UserDefaults.standard.removeObject(forKey: bookmarkKey)
+        AppSettings.shared.lastProjectPath = ""
+        projectURL = nil
     }
 
     deinit {
-        accessedURL?.stopAccessingSecurityScopedResource()
+        accessingURL?.stopAccessingSecurityScopedResource()
     }
 }

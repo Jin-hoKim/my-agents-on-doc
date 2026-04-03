@@ -1,8 +1,7 @@
 import Foundation
-import Combine
+import AppKit
 
-// Claude CLI 프로세스 감지 서비스
-// App Sandbox에서 ps aux가 제한될 수 있으므로 sysctl 기반 구현
+// Claude CLI 프로세스 감지 서비스 (3초 간격 폴링)
 @MainActor
 class ProcessMonitorService: ObservableObject {
     static let shared = ProcessMonitorService()
@@ -11,129 +10,101 @@ class ProcessMonitorService: ObservableObject {
     private var configService: AgentsConfigService { AgentsConfigService.shared }
     private var bookmarkService: BookmarkService { BookmarkService.shared }
 
-    // 모니터링 시작
-    func start() {
-        stop()
-        let interval = AppSettings.shared.monitorInterval
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+    func startMonitoring() {
+        stopMonitoring()
+        timer = Timer.scheduledTimer(
+            withTimeInterval: AppSettings.shared.monitorInterval,
+            repeats: true
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
                 self?.checkProcesses()
             }
         }
-        // 즉시 한 번 실행
-        checkProcesses()
     }
 
-    // 모니터링 중지
-    func stop() {
+    func stopMonitoring() {
         timer?.invalidate()
         timer = nil
     }
 
-    // 프로세스 감지 실행
+    // 실행 중인 Claude CLI 프로세스 감지
     private func checkProcesses() {
-        guard !configService.agents.isEmpty,
-              let projectPath = bookmarkService.projectURL?.path else {
-            configService.deactivateAll()
-            return
-        }
+        guard configService.connectionStatus.isConnected else { return }
+        guard let projectURL = bookmarkService.projectURL else { return }
 
-        let runningProcesses = getClaudeProcesses(projectPath: projectPath)
+        let runningPids = getClaudeProcesses(projectPath: projectURL.path)
 
-        // 모든 에이전트 우선 비활성화 후 매칭 업데이트
+        // 모든 에이전트 상태 초기화 후 감지된 것만 활성화
         for agent in configService.agents {
-            let matchedProcess = runningProcesses.first { process in
-                process.roles.contains(agent.id)
-            }
-            configService.updateAgentStatus(
+            let matchResult = runningPids.first { $0.roles.contains(agent.id) }
+            configService.updateAgentActivity(
                 id: agent.id,
-                isActive: matchedProcess != nil,
-                pid: matchedProcess.map { String($0.pid) }
+                isActive: matchResult != nil,
+                pid: matchResult.map { String($0.pid) }
             )
         }
     }
 
-    // Claude CLI 프로세스 목록 수집
-    private func getClaudeProcesses(projectPath: String) -> [ClaudeProcess] {
-        // ps aux를 통해 프로세스 목록 획득 (Sandbox 밖에서 실행 시)
-        // Sandbox 환경에서는 제한될 수 있음 → 빈 배열 반환
-        let output = runPS()
-        guard !output.isEmpty else { return [] }
-
-        var processes: [ClaudeProcess] = []
-        let lines = output.components(separatedBy: "\n")
-
-        for line in lines {
-            // claude 프로세스 찾기
-            guard line.contains("claude") || line.contains("Claude") else { continue }
-            guard !line.contains("grep") else { continue }
-
-            let parts = line.split(separator: " ", omittingEmptySubsequences: true)
-            guard parts.count > 1, let pid = Int(parts[1]) else { continue }
-
-            // 커맨드라인에서 역할 추출
-            // 예: ./team/run.sh frontend myproject "task"
-            // 또는 claude --role=frontend
-            let commandLine = parts.dropFirst(10).joined(separator: " ")
-            let roles = extractRoles(from: commandLine, projectPath: projectPath)
-
-            if !roles.isEmpty {
-                processes.append(ClaudeProcess(pid: pid, roles: roles, commandLine: commandLine))
-            }
-        }
-
-        return processes
-    }
-
-    // ps aux 실행 (Sandbox 환경 제약 고려)
-    private func runPS() -> String {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/ps")
-        process.arguments = ["aux"]
+    // ps aux 실행하여 Claude CLI 프로세스 목록 조회
+    private func getClaudeProcesses(projectPath: String) -> [ProcessInfo] {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/ps")
+        task.arguments = ["aux"]
 
         let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
+        task.standardOutput = pipe
+        task.standardError = Pipe()
 
         do {
-            try process.run()
-            process.waitUntilExit()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            return String(data: data, encoding: .utf8) ?? ""
+            try task.run()
+            task.waitUntilExit()
         } catch {
-            // Sandbox에서 Process() 차단 시 빈 문자열 반환
-            return ""
+            return []
         }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let output = String(data: data, encoding: .utf8) else { return [] }
+
+        return parseProcessOutput(output, projectPath: projectPath)
     }
 
-    // 커맨드라인에서 역할명 추출
-    private func extractRoles(from commandLine: String, projectPath: String) -> [String] {
-        var roles: [String] = []
+    // ps aux 출력 파싱하여 Claude 관련 프로세스 추출
+    private func parseProcessOutput(_ output: String, projectPath: String) -> [ProcessInfo] {
+        var results: [ProcessInfo] = []
 
-        // team/run.sh <role> <project> 패턴
-        let knownRoles = ["leader", "frontend", "backend", "database", "designer", "qa", "devops"]
-        for role in knownRoles {
-            if commandLine.contains(role) {
-                roles.append(role)
+        let lines = output.components(separatedBy: "\n").dropFirst() // 헤더 제거
+        for line in lines {
+            let parts = line.split(separator: " ", maxSplits: 10, omittingEmptySubsequences: true)
+            guard parts.count >= 11 else { continue }
+
+            let command = String(parts[10...].joined(separator: " "))
+
+            // claude 또는 claude-code 프로세스 감지
+            guard command.contains("claude") else { continue }
+
+            guard let pid = Int(parts[1]) else { continue }
+
+            // 역할 추출: --role=frontend 또는 ROLE=frontend 패턴
+            var roles: [String] = []
+            if let roleMatch = command.range(of: #"--role[=\s](\w+)"#, options: .regularExpression) {
+                let roleStr = String(command[roleMatch])
+                    .replacingOccurrences(of: "--role=", with: "")
+                    .replacingOccurrences(of: "--role ", with: "")
+                    .trimmingCharacters(in: .whitespaces)
+                roles.append(roleStr)
             }
+
+            // 역할 미매핑 시 projectPath 기반으로 모든 역할에 활성 표시
+            results.append(ProcessInfo(pid: pid, roles: roles, command: command))
         }
 
-        // --role=<role> 패턴
-        if let range = commandLine.range(of: "--role=") {
-            let afterRole = commandLine[range.upperBound...]
-            let role = afterRole.prefix(while: { !$0.isWhitespace && $0 != "," })
-            if !role.isEmpty {
-                roles.append(String(role))
-            }
-        }
-
-        return roles
+        return results
     }
 }
 
-// 감지된 Claude 프로세스 정보
-struct ClaudeProcess {
+// 프로세스 정보 구조체
+struct ProcessInfo {
     let pid: Int
     let roles: [String]
-    let commandLine: String
+    let command: String
 }
