@@ -1,5 +1,23 @@
 # HISTORY.md — My Agents on Dock
 
+## 2026-04-03 (버그 수정 #2)
+
+### 메뉴바 아이콘 클릭 시 메뉴창 안 열리는 버그 수정
+
+- **원인**: `MenuBarExtra(.window)` + `NSApp.setActivationPolicy(.accessory)` 조합이 SPM 빌드에서 충돌
+  - SwiftUI `MenuBarExtra` 의 `.window` 스타일은 앱 활성화(activate)를 필요로 하는데, `.accessory` 정책으로 인해 윈도우 표시 차단
+  - SPM 빌드에서 Info.plist가 앱 번들 루트에 올바르게 임베딩되지 않아 `LSUIElement = YES` 미적용
+
+- **수정**: `NSStatusItem + NSPopover` 직접 구현으로 교체 (AppKit 네이티브 방식)
+  - **main.swift** 생성: SwiftUI `@main` 대신 `NSApplication.shared.delegate = AppDelegate()` 직접 실행
+  - **MyAgentsOnDockApp.swift** 수정: `@main` + `MenuBarExtra` 제거 (파일은 주석으로 대체)
+  - **AppDelegate.swift** 수정:
+    - `setupStatusItem()` 추가: `NSStatusBar.system.statusItem` + `NSPopover` 생성
+    - `togglePopover(_:)` 추가: 클릭 시 팝오버 토글 (`popover.show` / `performClose`)
+    - 팝오버 내 `NSHostingController(rootView: MenuBarView())` 로 SwiftUI 뷰 임베딩
+    - `.transient` behavior로 팝오버 외부 클릭 시 자동 닫힘
+    - 팝오버 표시 시 `NSApp.activate(ignoringOtherApps: true)` 호출
+
 ## 2026-04-03 (버그 수정)
 
 ### SetupView 버튼 반응 없음 수정
