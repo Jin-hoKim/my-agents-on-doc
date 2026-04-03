@@ -51,7 +51,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // NSPopover 생성 - MenuBarView를 SwiftUI 콘텐츠로 포함
         let popover = NSPopover()
         popover.contentSize = NSSize(width: 280, height: 480)
-        popover.behavior = .transient  // 팝오버 밖 클릭 시 자동 닫힘
+        popover.behavior = .applicationDefined  // 버튼 액션이 먼저 실행되도록
         popover.contentViewController = NSHostingController(rootView: MenuBarView())
         self.popover = popover
     }

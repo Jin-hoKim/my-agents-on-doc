@@ -96,12 +96,16 @@ struct MenuBarView: View {
 
                 // 팀 프로젝트 설정
                 MenuButton(icon: "folder.badge.plus", title: "팀 프로젝트 연결") {
-                    NotificationCenter.default.post(name: .openSetup, object: nil)
+                    closePopoverAndRun {
+                        NotificationCenter.default.post(name: .openSetup, object: nil)
+                    }
                 }
 
                 // 설정
                 MenuButton(icon: "gearshape.fill", title: "설정") {
-                    NotificationCenter.default.post(name: .openSettings, object: nil)
+                    closePopoverAndRun {
+                        NotificationCenter.default.post(name: .openSettings, object: nil)
+                    }
                 }
 
                 Divider().padding(.vertical, 2)
@@ -114,6 +118,15 @@ struct MenuBarView: View {
             .padding(.vertical, 4)
         }
         .frame(width: 280)
+    }
+
+    // 팝오버 닫은 뒤 액션 실행
+    private func closePopoverAndRun(_ action: @escaping () -> Void) {
+        // 현재 뷰의 윈도우(팝오버)를 닫고 다음 런루프에서 액션 실행
+        NSApp.windows.first(where: { $0.className.contains("Popover") })?.close()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            action()
+        }
     }
 
     private func modelBadgeColor(_ model: String) -> Color {
