@@ -1,6 +1,13 @@
 # HISTORY.md — My Agents on Dock
 
-## 2026-04-03
+## 2026-04-03 (버그 수정)
+
+### SetupView 버튼 반응 없음 수정
+
+- **Views/SetupView.swift** 수정: `@Environment(\.dismiss)` → `NSApp.keyWindow?.close()` 직접 호출로 변경
+  - 원인: SetupView가 NSWindow + NSHostingView로 임베딩되어 SwiftUI의 dismiss 환경값이 연결되지 않음
+  - 수정: `closeWindow()` 헬퍼 메서드 추가, 닫기/팀연결 버튼에 적용
+  - 연결 해제 버튼은 창을 닫지 않으므로 기존 로직 유지 (clearBookmark + reload)
 
 ### Phase 1: 프로젝트 기반 구축 및 모델 정의
 

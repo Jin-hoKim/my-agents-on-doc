@@ -5,7 +5,12 @@ import AppKit
 struct SetupView: View {
     @ObservedObject private var bookmarkService = BookmarkService.shared
     @ObservedObject private var configService = AgentsConfigService.shared
-    @Environment(\.dismiss) private var dismiss
+
+    // NSWindow에 NSHostingView로 임베딩되므로 @Environment(\.dismiss) 미동작
+    // 대신 NSApp.keyWindow?.close() 직접 사용
+    private func closeWindow() {
+        NSApp.keyWindow?.close()
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -249,14 +254,14 @@ struct SetupView: View {
             Spacer()
 
             Button("닫기") {
-                dismiss()
+                closeWindow()
             }
             .keyboardShortcut(.escape)
 
             Button("팀 연결") {
-                // 이미 연결됨 — 패널 표시 확인 후 닫기
+                // 패널 표시 활성화 후 창 닫기
                 AppSettings.shared.isPanelVisible = true
-                dismiss()
+                closeWindow()
             }
             .buttonStyle(.borderedProminent)
             .disabled(!configService.connectionStatus.isConnected)
