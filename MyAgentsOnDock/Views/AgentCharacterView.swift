@@ -134,7 +134,7 @@ class BubbleWindowManager {
         // 마우스 위치 근처에 표시
         let mouseLocation = NSEvent.mouseLocation
         let x = mouseLocation.x - contentSize.width / 2
-        let y = mouseLocation.y + 20
+        let y = mouseLocation.y + 60
         newPanel.setFrameOrigin(NSPoint(x: x, y: y))
         newPanel.orderFront(nil)
 
