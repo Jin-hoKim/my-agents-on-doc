@@ -21,9 +21,7 @@ struct AgentCharacterView: View {
                 // 캐릭터 이미지 (Lottie 또는 이모지)
                 if let character = agent.character {
                     LottieView(animation: .named(character.fileName, bundle: .module))
-                        .playbackMode(agent.isActive
-                            ? .playing(.toProgress(1, loopMode: .loop))
-                            : .playing(.toProgress(0.5, loopMode: .playOnce)))
+                        .playbackMode(.playing(.toProgress(1, loopMode: .loop)))
                         .animationSpeed(agent.isActive ? 3.0 : 1.0)
                         .frame(width: size * 0.7, height: size * 0.7)
                 } else {
