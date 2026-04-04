@@ -60,27 +60,103 @@ class ProcessMonitorService: ObservableObject {
         }
     }
 
-    // ps aux + lsof CWD로 Claude CLI 프로세스 목록 조회 (백그라운드 스레드에서 실행)
+    // pgrep + ps로 Claude CLI 프로세스 목록 조회 (백그라운드 스레드에서 실행)
     nonisolated private static func getClaudeProcesses(projectPath: String, agentModels: [(id: String, model: String)]) -> [ClaudeProcessInfo] {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/ps")
-        task.arguments = ["aux"]
+        // 1단계: pgrep으로 claude 프로세스 PID 목록 가져오기
+        let pgrepTask = Process()
+        pgrepTask.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        pgrepTask.arguments = ["-f", "claude"]
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = Pipe()
+        let pgrepPipe = Pipe()
+        pgrepTask.standardOutput = pgrepPipe
+        pgrepTask.standardError = Pipe()
 
         do {
-            try task.run()
-            task.waitUntilExit()
+            try pgrepTask.run()
+            pgrepTask.waitUntilExit()
         } catch {
             return []
         }
 
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        guard let output = String(data: data, encoding: .utf8) else { return [] }
+        let pgrepData = pgrepPipe.fileHandleForReading.readDataToEndOfFile()
+        guard let pgrepOutput = String(data: pgrepData, encoding: .utf8) else { return [] }
 
-        return parseProcessOutput(output, projectPath: projectPath, agentModels: agentModels)
+        let pids = pgrepOutput.components(separatedBy: "\n")
+            .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
+
+        if pids.isEmpty { return [] }
+
+        // 2단계: 각 PID에 대해 ps -p PID -o command= 으로 명령어 가져오기
+        var results: [ClaudeProcessInfo] = []
+
+        for pid in pids {
+            let psTask = Process()
+            psTask.executableURL = URL(fileURLWithPath: "/bin/ps")
+            psTask.arguments = ["-p", String(pid), "-o", "command="]
+
+            let psPipe = Pipe()
+            psTask.standardOutput = psPipe
+            psTask.standardError = Pipe()
+
+            do {
+                try psTask.run()
+                psTask.waitUntilExit()
+            } catch {
+                continue
+            }
+
+            let psData = psPipe.fileHandleForReading.readDataToEndOfFile()
+            guard let command = String(data: psData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !command.isEmpty else { continue }
+
+            // claude CLI 메인 프로세스만 (플러그인, 훅 제외)
+            let isClaudeMain = command.contains("/claude ") ||
+                               command.contains("/claude\t") ||
+                               command.hasPrefix("claude ") ||
+                               command.contains("bin/claude") ||
+                               command.contains("/claude -") ||
+                               command.hasSuffix("/claude")
+            guard isClaudeMain else { continue }
+            guard !command.contains("claude-hook") &&
+                  !command.contains("plugins/") &&
+                  !command.contains("chrome-native") &&
+                  !command.contains("cmux") else { continue }
+
+            // 역할 추출
+            var roles: [String] = []
+
+            // --agent 또는 --role 플래그
+            if let agentMatch = command.range(of: #"--agent[=\s]+(\w+)"#, options: .regularExpression) {
+                let agentStr = String(command[agentMatch])
+                    .replacingOccurrences(of: "--agent=", with: "")
+                    .replacingOccurrences(of: "--agent ", with: "")
+                    .trimmingCharacters(in: .whitespaces)
+                roles.append(agentStr)
+            }
+            if let roleMatch = command.range(of: #"--role[=\s]+(\w+)"#, options: .regularExpression) {
+                let roleStr = String(command[roleMatch])
+                    .replacingOccurrences(of: "--role=", with: "")
+                    .replacingOccurrences(of: "--role ", with: "")
+                    .trimmingCharacters(in: .whitespaces)
+                if !roles.contains(roleStr) { roles.append(roleStr) }
+            }
+
+            // CWD 기반 매칭
+            if roles.isEmpty {
+                if let cwd = getProcessCwd(pid: pid) {
+                    if cwd == projectPath || cwd.hasPrefix(projectPath + "/") {
+                        let inferredRole = inferRoleFromCommand(command, agentModels: agentModels)
+                        roles.append(inferredRole ?? "leader")
+                    }
+                }
+            }
+
+            if !roles.isEmpty {
+                results.append(ClaudeProcessInfo(pid: pid, roles: roles, command: command))
+            }
+        }
+
+        return results
     }
 
     // 특정 PID의 작업 디렉토리(CWD) 조회
@@ -110,80 +186,6 @@ class ProcessMonitorService: ObservableObject {
             }
         }
         return nil
-    }
-
-    // ps aux 출력 파싱하여 Claude 관련 프로세스 추출
-    nonisolated private static func parseProcessOutput(_ output: String, projectPath: String, agentModels: [(id: String, model: String)]) -> [ClaudeProcessInfo] {
-        var results: [ClaudeProcessInfo] = []
-
-        let lines = output.components(separatedBy: "\n").dropFirst() // 헤더 제거
-        for line in lines {
-            let parts = line.split(separator: " ", maxSplits: 10, omittingEmptySubsequences: true)
-            guard parts.count >= 11 else { continue }
-
-            let command = String(parts[10...].joined(separator: " "))
-
-            // claude CLI 메인 프로세스만 감지 (하위 프로세스 제외)
-            let isClaudeProcess = command.contains("/claude ") ||
-                                  command.contains("/claude\t") ||
-                                  command.hasPrefix("claude ") ||
-                                  command.contains("bin/claude") ||
-                                  command.contains("/claude -") ||
-                                  command.hasSuffix("/claude")
-            guard isClaudeProcess else { continue }
-            // 플러그인, 훅, 보조 프로세스 제외
-            guard !command.contains("claude-hook") &&
-                  !command.contains("plugins/") &&
-                  !command.contains("chrome-native") else { continue }
-
-            guard let pid = Int(parts[1]) else { continue }
-
-            // 1단계: 명령줄에서 역할 추출
-            var roles: [String] = []
-
-            // --agent leader (멀티 에이전트 모드)
-            if let agentMatch = command.range(of: #"--agent[=\s]+(\w+)"#, options: .regularExpression) {
-                let agentStr = String(command[agentMatch])
-                    .replacingOccurrences(of: "--agent=", with: "")
-                    .replacingOccurrences(of: "--agent ", with: "")
-                    .trimmingCharacters(in: .whitespaces)
-                roles.append(agentStr)
-            }
-
-            // --role=frontend 패턴
-            if let roleMatch = command.range(of: #"--role[=\s]+(\w+)"#, options: .regularExpression) {
-                let roleStr = String(command[roleMatch])
-                    .replacingOccurrences(of: "--role=", with: "")
-                    .replacingOccurrences(of: "--role ", with: "")
-                    .trimmingCharacters(in: .whitespaces)
-                if !roles.contains(roleStr) {
-                    roles.append(roleStr)
-                }
-            }
-
-            // 2단계: 역할 미매핑 시 CWD 기반으로 프로젝트 소속 확인
-            if roles.isEmpty {
-                if let cwd = getProcessCwd(pid: pid) {
-                    // CWD가 프로젝트 경로 또는 하위 디렉토리인 경우
-                    if cwd == projectPath || cwd.hasPrefix(projectPath + "/") {
-                        // --model 플래그로 역할 추론
-                        let inferredRole = inferRoleFromCommand(command, agentModels: agentModels)
-                        if let role = inferredRole {
-                            roles.append(role)
-                        } else {
-                            // 역할 추론 불가 시 leader(기본 오케스트레이터)로 매핑
-                            roles.append("leader")
-                        }
-                    }
-                }
-            }
-
-            if !roles.isEmpty {
-                results.append(ClaudeProcessInfo(pid: pid, roles: roles, command: command))
-            }
-        }
-
-        return results
     }
 
     // 명령줄에서 모델 정보로 역할 추론 (명시적 플래그만 사용)
