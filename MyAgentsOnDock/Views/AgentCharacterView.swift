@@ -7,16 +7,14 @@ struct AgentCharacterView: View {
     let agent: TeamAgent
     let size: CGFloat
 
-    @State private var showBubble = false
-    @State private var bubbleText = ""
-    @State private var bubbleTimer: Timer?
+    @StateObject private var bubbleState = BubbleState()
 
     var body: some View {
         VStack(spacing: 3) {
             ZStack {
                 // 말풍선
-                if showBubble {
-                    SpeechBubble(text: bubbleText, maxWidth: max(160, size * 1.5))
+                if bubbleState.isVisible {
+                    SpeechBubble(text: bubbleState.text, maxWidth: max(160, size * 1.5))
                         .offset(y: -(size * 0.55 + 30))
                         .transition(.scale.combined(with: .opacity))
                         .zIndex(10)
@@ -62,32 +60,21 @@ struct AgentCharacterView: View {
                 .frame(maxWidth: size + 20)
         }
         .frame(width: size + 20, height: size + max(30, size * 0.25))
-        .animation(.spring(duration: 0.3), value: showBubble)
+        .animation(.spring(duration: 0.3), value: bubbleState.isVisible)
     }
 
     private func handleTap() {
-        // 이전 타이머 취소
-        bubbleTimer?.invalidate()
-
+        let text: String
         if agent.isActive {
-            // 작업 중: 역할 + 상태 표시
             let name = agent.name.isEmpty ? agent.id : agent.name
             let role = agent.roleDescription.isEmpty ? agent.id : agent.roleDescription
-            bubbleText = "\(name): \(role) 작업 중이에요! 열심히 하고 있어요 💪"
+            text = "\(name): \(role) 작업 중이에요! 열심히 하고 있어요 💪"
         } else {
-            // 대기 중: 랜덤 한마디
-            bubbleText = AgentQuotes.random(for: agent)
+            text = AgentQuotes.random(for: agent)
         }
 
-        withAnimation { showBubble = true }
-        AgentTTSService.shared.speak(bubbleText)
-
-        // 5초 후 자동 닫기
-        bubbleTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: false) { _ in
-            DispatchQueue.main.async {
-                withAnimation { showBubble = false }
-            }
-        }
+        bubbleState.show(text: text)
+        AgentTTSService.shared.speak(text)
     }
 
     // 배경 그래디언트
@@ -104,6 +91,25 @@ struct AgentCharacterView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+        }
+    }
+}
+
+// 말풍선 상태 (리렌더에도 유지되는 ObservableObject)
+class BubbleState: ObservableObject {
+    @Published var isVisible = false
+    @Published var text = ""
+    private var timer: Timer?
+
+    func show(text: String) {
+        timer?.invalidate()
+        self.text = text
+        withAnimation { isVisible = true }
+
+        timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: false) { [weak self] _ in
+            DispatchQueue.main.async {
+                withAnimation { self?.isVisible = false }
+            }
         }
     }
 }
@@ -201,9 +207,13 @@ class AgentTTSService {
         }
 
         let utterance = AVSpeechUtterance(string: content)
-        utterance.voice = AVSpeechSynthesisVoice(language: "ko-KR")
-        utterance.rate = 0.52
+        // 한국어 음성 우선, 없으면 기본 음성 사용
+        if let koVoice = AVSpeechSynthesisVoice(language: "ko-KR") {
+            utterance.voice = koVoice
+        }
+        utterance.rate = 0.5
         utterance.volume = 0.7
+        utterance.prefersAssistiveTechnologySettings = false
         synthesizer.speak(utterance)
     }
 }
