@@ -117,21 +117,43 @@ class TeamDockPanel: NSPanel {
     func updateForAgents(count: Int) {
         let agentCount = max(count, 1)
         let charSize = currentCharacterSize
-        let totalWidth = calculateWidth(agentCount: agentCount, charSize: charSize)
-        // 캐릭터 뷰 높이: size + 38 (AgentCharacterView) + 상하 패딩
-        let totalHeight = charSize + 38 + verticalPadding * 2 + 12
-        setContentSize(NSSize(width: totalWidth, height: totalHeight))
+        let layout = AppSettings.shared.layoutMode
+        let panelSize = calculatePanelSize(agentCount: agentCount, charSize: charSize, layout: layout)
+        setContentSize(panelSize)
         positionAboveDock()
     }
 
-    // 패널 너비 계산
-    private func calculateWidth(agentCount: Int, charSize: CGFloat) -> CGFloat {
-        guard let screen = NSScreen.main else { return 200 }
+    // 패널 크기 계산 (레이아웃 모드 반영)
+    private func calculatePanelSize(agentCount: Int, charSize: CGFloat, layout: LayoutMode) -> NSSize {
+        guard let screen = NSScreen.main else { return NSSize(width: 200, height: 200) }
         let maxWidth = screen.frame.width * 0.95
-        // 각 캐릭터 영역: 캐릭터 크기 + 여유 공간
-        let perAgent: CGFloat = max(charSize + 10, 80)
-        let calculated = perAgent * CGFloat(agentCount) + 40  // 좌우 여백
-        return min(calculated, maxWidth)
+        let maxHeight = screen.frame.height * 0.8
+
+        // 각 캐릭터 영역 크기
+        let perAgentW: CGFloat = charSize + 28  // AgentCharacterView width: size + 20 + spacing
+        let perAgentH: CGFloat = charSize + max(30, charSize * 0.25) + 16  // height + spacing
+
+        var width: CGFloat
+        var height: CGFloat
+
+        switch layout {
+        case .singleRow:
+            width = perAgentW * CGFloat(agentCount) + 40
+            height = perAgentH + verticalPadding * 2
+        case .singleColumn:
+            width = perAgentW + horizontalPadding * 2
+            height = perAgentH * CGFloat(agentCount) + 20
+        case .doubleRow:
+            let perRow = Int(ceil(Double(agentCount) / 2.0))
+            width = perAgentW * CGFloat(perRow) + 40
+            height = perAgentH * 2 + verticalPadding * 2
+        case .doubleColumn:
+            let perCol = Int(ceil(Double(agentCount) / 2.0))
+            width = perAgentW * 2 + horizontalPadding * 2
+            height = perAgentH * CGFloat(perCol) + 20
+        }
+
+        return NSSize(width: min(width, maxWidth), height: min(height, maxHeight))
     }
 
     // Dock 위 위치 조정
