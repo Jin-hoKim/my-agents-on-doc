@@ -29,7 +29,20 @@ struct SettingsView: View {
                 }
             }
 
-            // 섹션 2: 팀 구성 편집
+            // 섹션 2: 배치 설정
+            Section("배치") {
+                Picker("레이아웃", selection: Binding(
+                    get: { settings.layoutMode },
+                    set: { settings.layoutMode = $0 }
+                )) {
+                    ForEach(LayoutMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
+            // 섹션 3: 팀 구성 편집
             Section {
                 if configService.agents.isEmpty {
                     HStack {

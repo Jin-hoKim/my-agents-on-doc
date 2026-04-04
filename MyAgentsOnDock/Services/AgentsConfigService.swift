@@ -175,6 +175,16 @@ class AgentsConfigService: ObservableObject {
         }
     }
 
+    // 에이전트 순서 변경 (드래그앤드롭)
+    func reorderAgent(from: Int, to: Int) {
+        guard from != to,
+              from >= 0, from < agents.count,
+              to >= 0, to < agents.count else { return }
+        let agent = agents.remove(at: from)
+        agents.insert(agent, at: to)
+        saveCustomizations()
+    }
+
     // 에이전트 활성 상태 업데이트
     func updateAgentActivity(id: String, isActive: Bool, pid: String? = nil) {
         if let index = agents.firstIndex(where: { $0.id == id }) {
