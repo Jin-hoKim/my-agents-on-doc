@@ -121,7 +121,7 @@ struct TeamAgentRow: View {
 
                     if let character = agent.character {
                         // Lottie 애니메이션 미리보기
-                        LottieView(animation: .named(character.fileName, bundle: .main))
+                        LottieView(animation: .named(character.fileName, bundle: .module))
                             .playbackMode(.playing(.toProgress(0.5, loopMode: .playOnce)))
                             .frame(width: 40, height: 40)
                     } else {
@@ -260,7 +260,7 @@ struct CharacterPickerView: View {
                                         .frame(width: 64, height: 64)
                                 }
 
-                                LottieView(animation: .named(character.fileName, bundle: .main))
+                                LottieView(animation: .named(character.fileName, bundle: .module))
                                     .playbackMode(.playing(.toProgress(0.5, loopMode: .playOnce)))
                                     .frame(width: 50, height: 50)
                             }
