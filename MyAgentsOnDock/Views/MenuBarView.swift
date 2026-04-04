@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 메뉴바 드롭다운 뷰
+// Menu bar dropdown view
 struct MenuBarView: View {
     @ObservedObject private var configService = AgentsConfigService.shared
     @ObservedObject private var settings = AppSettings.shared
@@ -11,7 +11,7 @@ struct MenuBarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 헤더
+            // Header
             HStack {
                 Text("🤖")
                     .font(.title3)
@@ -23,7 +23,7 @@ struct MenuBarView: View {
                             .fill(configService.connectionStatus.isConnected ? Color.green : Color.gray)
                             .frame(width: 6, height: 6)
                         Text(configService.connectionStatus.isConnected
-                            ? "\(activeCount)/\(configService.agents.count) 에이전트 활성"
+                            ? "\(activeCount)/\(configService.agents.count) agents active"
                             : configService.connectionStatus.displayText)
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -36,7 +36,7 @@ struct MenuBarView: View {
 
             Divider()
 
-            // 에이전트 목록
+            // Agent list
             if !configService.agents.isEmpty {
                 VStack(spacing: 0) {
                     ForEach(configService.agents) { agent in
@@ -52,7 +52,7 @@ struct MenuBarView: View {
                                     .foregroundColor(.secondary)
                             }
                             Spacer()
-                            // 모델 뱃지
+                            // Model badge
                             Text(agent.modelBadge)
                                 .font(.system(size: 8, weight: .bold))
                                 .foregroundColor(.white)
@@ -61,7 +61,7 @@ struct MenuBarView: View {
                                 .background(modelBadgeColor(agent.model))
                                 .clipShape(Capsule())
 
-                            // 활성 상태
+                            // Active state indicator
                             Circle()
                                 .fill(agent.isActive ? Color.green : Color.gray.opacity(0.3))
                                 .frame(width: 7, height: 7)
@@ -75,15 +75,15 @@ struct MenuBarView: View {
                 Divider()
             }
 
-            // 메뉴 항목들
+            // Menu items
             VStack(spacing: 0) {
-                // Dock 캐릭터 표시 토글
+                // Toggle Dock character display
                 Toggle(isOn: $settings.isPanelVisible) {
                     HStack {
                         Image(systemName: "dock.rectangle")
                             .font(.subheadline)
                             .frame(width: 20)
-                        Text("Dock 위 캐릭터 표시")
+                        Text("Show Characters on Dock")
                             .font(.subheadline)
                     }
                 }
@@ -94,15 +94,15 @@ struct MenuBarView: View {
 
                 Divider().padding(.vertical, 2)
 
-                // 팀 프로젝트 설정
-                MenuButton(icon: "folder.badge.plus", title: "팀 프로젝트 연결") {
+                // Team project setup
+                MenuButton(icon: "folder.badge.plus", title: "Connect Team Project") {
                     closePopoverAndRun {
                         NotificationCenter.default.post(name: .openSetup, object: nil)
                     }
                 }
 
-                // 설정
-                MenuButton(icon: "gearshape.fill", title: "설정") {
+                // Settings
+                MenuButton(icon: "gearshape.fill", title: "Settings") {
                     closePopoverAndRun {
                         NotificationCenter.default.post(name: .openSettings, object: nil)
                     }
@@ -110,8 +110,8 @@ struct MenuBarView: View {
 
                 Divider().padding(.vertical, 2)
 
-                // 종료
-                MenuButton(icon: "power", title: "종료") {
+                // Quit
+                MenuButton(icon: "power", title: "Quit") {
                     NSApplication.shared.terminate(nil)
                 }
             }
@@ -120,9 +120,9 @@ struct MenuBarView: View {
         .frame(width: 280)
     }
 
-    // 팝오버 닫은 뒤 액션 실행
+    // Close popover then execute action
     private func closePopoverAndRun(_ action: @escaping () -> Void) {
-        // 현재 뷰의 윈도우(팝오버)를 닫고 다음 런루프에서 액션 실행
+        // Close the current view's window (popover) and execute action on next run loop
         NSApp.windows.first(where: { $0.className.contains("Popover") })?.close()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             action()
@@ -139,7 +139,7 @@ struct MenuBarView: View {
     }
 }
 
-// 메뉴 버튼 컴포넌트
+// Menu button component
 struct MenuButton: View {
     let icon: String
     let title: String

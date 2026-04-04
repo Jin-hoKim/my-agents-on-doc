@@ -1,16 +1,16 @@
 import SwiftUI
 import AppKit
 
-// 초기 설정 / 프로젝트 연결 뷰
+// Initial setup / project connection view
 struct SetupView: View {
     @ObservedObject private var bookmarkService = BookmarkService.shared
     @ObservedObject private var configService = AgentsConfigService.shared
 
-    // NSHostingView 임베딩이므로 뷰가 속한 윈도우를 직접 찾아 닫기
+    // Embedded in NSHostingView — find and close the hosting window directly
     private func closeWindow() {
         DispatchQueue.main.async {
-            // 이 뷰를 호스팅하는 윈도우 찾기
-            if let window = NSApp.windows.first(where: { $0.title == "팀 프로젝트 연결" }) {
+            // Find the window hosting this view
+            if let window = NSApp.windows.first(where: { $0.title == "Connect Team Project" }) {
                 window.close()
             } else {
                 NSApp.keyWindow?.close()
@@ -20,22 +20,22 @@ struct SetupView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 헤더
+            // Header
             headerSection
 
             Divider()
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    // 섹션 1: 프로젝트 폴더 선택
+                    // Section 1: Project folder selection
                     projectFolderSection
 
                     Divider()
 
-                    // 섹션 2: agents.json 상태
+                    // Section 2: agents.json status
                     agentsFileStatusSection
 
-                    // 섹션 3: 팀 미리보기
+                    // Section 3: Team preview
                     if !configService.agents.isEmpty {
                         Divider()
                         teamPreviewSection
@@ -46,7 +46,7 @@ struct SetupView: View {
 
             Divider()
 
-            // 하단 버튼
+            // Bottom buttons
             bottomButtons
         }
         .frame(width: 480, height: 520)
@@ -55,7 +55,7 @@ struct SetupView: View {
         }
     }
 
-    // 헤더
+    // Header
     private var headerSection: some View {
         HStack {
             Text("🤖")
@@ -63,7 +63,7 @@ struct SetupView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("My Agents on Dock")
                     .font(.headline)
-                Text("Claude Code 팀 프로젝트를 연결하세요")
+                Text("Connect your Claude Code team project")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -72,10 +72,10 @@ struct SetupView: View {
         .padding(16)
     }
 
-    // 섹션 1: 프로젝트 폴더 선택
+    // Section 1: Project folder selection
     private var projectFolderSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("프로젝트 폴더", systemImage: "folder")
+            Label("Project Folder", systemImage: "folder")
                 .font(.subheadline.weight(.semibold))
 
             HStack {
@@ -90,7 +90,7 @@ struct SetupView: View {
                         .background(Color.secondary.opacity(0.1))
                         .cornerRadius(6)
                 } else {
-                    Text("선택된 폴더 없음")
+                    Text("No folder selected")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -99,9 +99,9 @@ struct SetupView: View {
                         .cornerRadius(6)
                 }
 
-                Button("선택...") {
+                Button("Choose...") {
                     bookmarkService.selectProjectFolder()
-                    // 폴더 선택 후 자동 리로드
+                    // Auto-reload after folder selection
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         NotificationCenter.default.post(name: .projectURLChanged, object: nil)
                     }
@@ -111,10 +111,10 @@ struct SetupView: View {
         }
     }
 
-    // 섹션 2: agents.json 상태
+    // Section 2: agents.json status
     private var agentsFileStatusSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("agents.json 상태", systemImage: "doc.text")
+            Label("agents.json Status", systemImage: "doc.text")
                 .font(.subheadline.weight(.semibold))
 
             HStack(spacing: 8) {
@@ -134,7 +134,7 @@ struct SetupView: View {
                 }
                 Spacer()
 
-                // 새로고침 버튼
+                // Refresh button
                 Button(action: { configService.reload() }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.caption)
@@ -146,7 +146,7 @@ struct SetupView: View {
             .background(statusBackground)
             .cornerRadius(8)
 
-            // agents.json 형식 가이드 (오류 시)
+            // agents.json format guide (shown on error)
             if case .parseError = configService.connectionStatus {
                 agentsJsonGuide
             }
@@ -156,19 +156,19 @@ struct SetupView: View {
         }
     }
 
-    // 섹션 3: 팀 미리보기
+    // Section 3: Team preview
     private var teamPreviewSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("팀 구성 (\(configService.agents.count)명)", systemImage: "person.3")
+            Label("Team (\(configService.agents.count) members)", systemImage: "person.3")
                 .font(.subheadline.weight(.semibold))
 
             VStack(spacing: 1) {
-                // 헤더 행
+                // Header row
                 HStack {
-                    Text("역할").frame(width: 80, alignment: .leading)
-                    Text("이름").frame(maxWidth: .infinity, alignment: .leading)
-                    Text("모델").frame(width: 80, alignment: .leading)
-                    Text("설명").frame(maxWidth: .infinity, alignment: .leading)
+                    Text("Role").frame(width: 80, alignment: .leading)
+                    Text("Name").frame(maxWidth: .infinity, alignment: .leading)
+                    Text("Model").frame(width: 80, alignment: .leading)
+                    Text("Description").frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .font(.caption.weight(.semibold))
                 .foregroundColor(.secondary)
@@ -176,7 +176,7 @@ struct SetupView: View {
                 .padding(.vertical, 4)
                 .background(Color.secondary.opacity(0.1))
 
-                // 에이전트 행들
+                // Agent rows
                 ForEach(configService.agents) { agent in
                     HStack {
                         HStack(spacing: 4) {
@@ -216,10 +216,10 @@ struct SetupView: View {
         }
     }
 
-    // agents.json 형식 가이드
+    // agents.json format guide
     private var agentsJsonGuide: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("agents.json 형식 예시:")
+            Text("agents.json format example:")
                 .font(.caption.weight(.semibold))
                 .foregroundColor(.secondary)
 
@@ -227,12 +227,12 @@ struct SetupView: View {
 {
   "leader": {
     "model": "opus",
-    "description": "PM 재혁 — 요구사항 분석",
-    "prompt": "당신은 PM입니다..."
+    "description": "PM Alex — requirements analysis",
+    "prompt": "You are a PM..."
   },
   "frontend": {
     "model": "sonnet",
-    "description": "개발자 민지 — Vue 3 전문",
+    "description": "Dev Sam — Vue 3 specialist",
     "prompt": "..."
   }
 }
@@ -245,11 +245,11 @@ struct SetupView: View {
         }
     }
 
-    // 하단 버튼
+    // Bottom buttons
     private var bottomButtons: some View {
         HStack {
             if bookmarkService.projectURL != nil {
-                Button("연결 해제") {
+                Button("Disconnect") {
                     DispatchQueue.main.async {
                         bookmarkService.clearBookmark()
                         configService.reload()
@@ -261,11 +261,11 @@ struct SetupView: View {
 
             Spacer()
 
-            Button("닫기") {
+            Button("Close") {
                 closeWindow()
             }
 
-            Button("팀 연결") {
+            Button("Connect Team") {
                 AppSettings.shared.isPanelVisible = true
                 closeWindow()
             }

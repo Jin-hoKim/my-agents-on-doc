@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// 앱 생명주기 관리
+// App lifecycle management
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
@@ -25,7 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // MARK: - 메뉴바 설정
+    // MARK: - Menu Bar Setup
 
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -42,21 +42,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
         buildMenu(menu)
 
-        // 버튼 위치에 메뉴 직접 표시
+        // Show menu directly at button position
         let point = NSPoint(x: 0, y: button.bounds.height + 5)
         menu.popUp(positioning: nil, at: point, in: button)
     }
 
-    // MARK: - 메뉴 구성
+    // MARK: - Menu Construction
 
     private func buildMenu(_ menu: NSMenu) {
         let configService = AgentsConfigService.shared
         let activeCount = configService.agents.filter { $0.isActive }.count
         let statusText = configService.connectionStatus.isConnected
-            ? "\(activeCount)/\(configService.agents.count) 에이전트 활성"
+            ? "\(activeCount)/\(configService.agents.count) agents active"
             : configService.connectionStatus.displayText
 
-        // 헤더
+        // Header
         let header = NSMenuItem()
         header.attributedTitle = NSAttributedString(
             string: "My Agents on Dock — \(statusText)",
@@ -66,7 +66,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(header)
         menu.addItem(.separator())
 
-        // 에이전트 목록
+        // Agent list
         if !configService.agents.isEmpty {
             for agent in configService.agents {
                 let dot = agent.isActive ? "🟢" : "⚫"
@@ -84,20 +84,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(.separator())
         }
 
-        // Dock 캐릭터 표시
-        let dockToggle = NSMenuItem(title: "Dock 위 캐릭터 표시", action: #selector(toggleDockPanel), keyEquivalent: "")
+        // Show Dock characters
+        let dockToggle = NSMenuItem(title: "Show Characters on Dock", action: #selector(toggleDockPanel), keyEquivalent: "")
         dockToggle.target = self
         dockToggle.state = AppSettings.shared.isPanelVisible ? .on : .off
         menu.addItem(dockToggle)
         menu.addItem(.separator())
 
-        // 팀 프로젝트 연결
-        menu.addItem(makeItem("팀 프로젝트 연결", action: #selector(menuOpenSetup)))
-        // 설정
-        menu.addItem(makeItem("설정", action: #selector(menuOpenSettings), key: ","))
+        // Connect team project
+        menu.addItem(makeItem("Connect Team Project", action: #selector(menuOpenSetup)))
+        // Settings
+        menu.addItem(makeItem("Settings", action: #selector(menuOpenSettings), key: ","))
         menu.addItem(.separator())
-        // 종료
-        menu.addItem(makeItem("종료", action: #selector(menuQuit), key: "q"))
+        // Quit
+        menu.addItem(makeItem("Quit", action: #selector(menuQuit), key: "q"))
     }
 
     private func makeItem(_ title: String, action: Selector, key: String = "") -> NSMenuItem {
@@ -106,7 +106,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return item
     }
 
-    // MARK: - 메뉴 액션
+    // MARK: - Menu Actions
 
     @objc private func toggleDockPanel() {
         AppSettings.shared.isPanelVisible.toggle()
@@ -124,7 +124,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.terminate(nil)
     }
 
-    // MARK: - 종료
+    // MARK: - Termination
 
     func applicationWillTerminate(_ notification: Notification) {
         ProcessMonitorService.shared.stopMonitoring()
@@ -136,14 +136,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let obs = settingsObserver { NotificationCenter.default.removeObserver(obs) }
     }
 
-    // 서비스 초기화
+    // Initialize services
     private func initializeServices() {
         _ = BookmarkService.shared
         AgentsConfigService.shared.reload()
         ProcessMonitorService.shared.startMonitoring()
     }
 
-    // 알림 옵저버
+    // Notification observers
     private func setupObservers() {
         setupObserver = NotificationCenter.default.addObserver(
             forName: .openSetup, object: nil, queue: .main
@@ -154,7 +154,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] _ in self?.openSettingsWindow() }
     }
 
-    // MARK: - 창 관리
+    // MARK: - Window Management
 
     func openSetupWindow() {
         if let window = setupWindow, window.isVisible {
@@ -162,7 +162,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.activate(ignoringOtherApps: true)
             return
         }
-        let window = makeWindow(size: NSSize(width: 480, height: 520), title: "팀 프로젝트 연결")
+        let window = makeWindow(size: NSSize(width: 480, height: 520), title: "Connect Team Project")
         window.contentView = NSHostingView(rootView: SetupView())
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -175,7 +175,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.activate(ignoringOtherApps: true)
             return
         }
-        let window = makeWindow(size: NSSize(width: 400, height: 480), title: "설정")
+        let window = makeWindow(size: NSSize(width: 400, height: 480), title: "Settings")
         window.contentView = NSHostingView(rootView: SettingsView())
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

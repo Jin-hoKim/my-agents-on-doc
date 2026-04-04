@@ -1,7 +1,7 @@
 import SwiftUI
 import Lottie
 
-// 설정 뷰
+// Settings view
 struct SettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
     @ObservedObject private var bookmarkService = BookmarkService.shared
@@ -9,11 +9,10 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            // 섹션 1: 표시 설정
-            Section("표시 설정") {
-                Toggle("Dock 위 캐릭터 표시", isOn: $settings.isPanelVisible)
+            Section("Display") {
+                Toggle("Show characters on Dock", isOn: $settings.isPanelVisible)
 
-                LabeledContent("캐릭터 크기") {
+                LabeledContent("Character Size") {
                     HStack {
                         Slider(
                             value: $settings.characterSize,
@@ -29,9 +28,8 @@ struct SettingsView: View {
                 }
             }
 
-            // 섹션 2: 배치 설정
-            Section("배치") {
-                Picker("레이아웃", selection: Binding(
+            Section("Layout") {
+                Picker("Layout", selection: Binding(
                     get: { settings.layoutMode },
                     set: { settings.layoutMode = $0 }
                 )) {
@@ -42,16 +40,15 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
             }
 
-            // 섹션 3: 팀 구성 편집
             Section {
                 if configService.agents.isEmpty {
                     HStack {
                         Spacer()
                         VStack(spacing: 8) {
-                            Text("팀이 구성되지 않았습니다")
+                            Text("No team configured")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
-                            Text("프로젝트 폴더를 연결하거나\n아래에서 팀원을 추가하세요")
+                            Text("Connect a project folder\nor add team members below")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
@@ -68,24 +65,23 @@ struct SettingsView: View {
                 }
             } header: {
                 HStack {
-                    Text("팀 구성 (\(configService.agents.count)명)")
+                    Text("Team (\(configService.agents.count) agents)")
                     Spacer()
                     Button {
                         openSetupWindow()
                     } label: {
-                        Text("프로젝트 연결")
+                        Text("Connect Project")
                             .font(.caption)
                     }
                     .controlSize(.small)
                 }
             }
 
-            // 섹션 3: 음성 설정
-            Section("음성") {
-                Toggle("음성 사용", isOn: $settings.ttsEnabled)
+            Section("Voice") {
+                Toggle("Enable TTS", isOn: $settings.ttsEnabled)
 
                 if settings.ttsEnabled {
-                    Picker("음성 종류", selection: Binding(
+                    Picker("Voice", selection: Binding(
                         get: { settings.ttsVoice },
                         set: { settings.ttsVoice = $0 }
                     )) {
@@ -94,16 +90,15 @@ struct SettingsView: View {
                         }
                     }
 
-                    Button("미리 듣기") {
-                        AgentTTSService.shared.speak("안녕하세요! 저는 당신의 에이전트입니다.", force: true)
+                    Button("Preview") {
+                        AgentTTSService.shared.speak("Hello! I am your agent.", force: true)
                     }
                     .controlSize(.small)
                 }
             }
 
-            // 섹션 4: 프로세스 감시
-            Section("프로세스 감시") {
-                LabeledContent("감시 간격") {
+            Section("Process Monitor") {
+                LabeledContent("Interval") {
                     HStack {
                         Slider(
                             value: $settings.monitorInterval,
@@ -111,21 +106,21 @@ struct SettingsView: View {
                             step: 1
                         )
                         .frame(width: 140)
-                        Text("\(Int(settings.monitorInterval))초")
+                        Text("\(Int(settings.monitorInterval))s")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .frame(width: 28)
                     }
                 }
 
-                Text("Claude CLI 프로세스를 주기적으로 감지하여 에이전트 활성 상태를 업데이트합니다.")
+                Text("Periodically detects Claude CLI processes to update agent activity status.")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
         }
         .formStyle(.grouped)
         .frame(width: 440, height: 640)
-        .navigationTitle("설정")
+        .navigationTitle("Settings")
     }
 
     private func openSetupWindow() {
@@ -133,7 +128,7 @@ struct SettingsView: View {
     }
 }
 
-// 팀 에이전트 행 (캐릭터 선택 + 이름 편집)
+// Team agent row (character selection + name editing)
 struct TeamAgentRow: View {
     let agent: TeamAgent
     let onUpdate: (TeamAgent) -> Void
@@ -144,7 +139,6 @@ struct TeamAgentRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // 캐릭터 이미지 선택 버튼
             Button {
                 showCharacterPicker = true
             } label: {
@@ -154,7 +148,6 @@ struct TeamAgentRow: View {
                         .frame(width: 48, height: 48)
 
                     if let character = agent.character {
-                        // Lottie 애니메이션 미리보기
                         LottieView(animation: .named(character.fileName, bundle: .module))
                             .playbackMode(.playing(.toProgress(0.5, loopMode: .playOnce)))
                             .frame(width: 40, height: 40)
@@ -163,7 +156,6 @@ struct TeamAgentRow: View {
                             .font(.system(size: 24))
                     }
 
-                    // 선택 힌트
                     Image(systemName: "pencil.circle.fill")
                         .font(.system(size: 12))
                         .foregroundColor(.white)
@@ -184,29 +176,21 @@ struct TeamAgentRow: View {
                 )
             }
 
-            // 이름 + 역할 정보
             VStack(alignment: .leading, spacing: 3) {
-                // 이름 편집
                 if isEditingName {
                     HStack(spacing: 4) {
-                        TextField("이름 입력", text: $editingName)
+                        TextField("Enter name", text: $editingName)
                             .textFieldStyle(.roundedBorder)
                             .font(.system(size: 13, weight: .medium))
                             .frame(maxWidth: 130)
-                            .onSubmit {
-                                saveName()
-                            }
-                        Button {
-                            saveName()
-                        } label: {
+                            .onSubmit { saveName() }
+                        Button { saveName() } label: {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 14))
                                 .foregroundColor(.green)
                         }
                         .buttonStyle(.plain)
-                        Button {
-                            isEditingName = false
-                        } label: {
+                        Button { isEditingName = false } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 14))
                                 .foregroundColor(.secondary)
@@ -229,7 +213,6 @@ struct TeamAgentRow: View {
                     }
                 }
 
-                // 역할 + 모델
                 HStack(spacing: 6) {
                     Text(agent.id)
                         .font(.system(size: 10))
@@ -251,7 +234,6 @@ struct TeamAgentRow: View {
 
             Spacer()
 
-            // 활성 상태
             Circle()
                 .fill(agent.isActive ? Color.green : Color.gray.opacity(0.3))
                 .frame(width: 8, height: 8)
@@ -283,7 +265,7 @@ struct TeamAgentRow: View {
     }
 }
 
-// 캐릭터 선택 그리드 팝업
+// Character picker grid popup
 struct CharacterPickerView: View {
     let selected: RobotCharacter?
     let onSelect: (RobotCharacter) -> Void
@@ -296,7 +278,7 @@ struct CharacterPickerView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Text("캐릭터 선택")
+            Text("Select Character")
                 .font(.headline)
                 .padding(.top, 12)
 
@@ -337,7 +319,7 @@ struct CharacterPickerView: View {
     }
 }
 
-// Hex 색상 변환
+// Hex color conversion
 extension Color {
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))

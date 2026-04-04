@@ -1,6 +1,6 @@
 import Foundation
 
-// 역할별 이모지 매핑
+// Role-to-emoji mapping
 enum AgentRole {
     static let emojiMap: [String: String] = [
         "leader":   "📋",

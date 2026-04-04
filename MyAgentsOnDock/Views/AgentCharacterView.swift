@@ -2,7 +2,7 @@ import SwiftUI
 import Lottie
 import AVFoundation
 
-// 개별 에이전트 캐릭터 뷰
+// Individual agent character view
 struct AgentCharacterView: View {
     let agent: TeamAgent
     let size: CGFloat
@@ -10,7 +10,7 @@ struct AgentCharacterView: View {
     var body: some View {
         VStack(spacing: 3) {
             ZStack {
-                // 배경 원형 그래디언트
+                // Background circular gradient
                 Circle()
                     .fill(backgroundGradient(isActive: agent.isActive))
                     .frame(width: size * 0.85, height: size * 0.85)
@@ -19,7 +19,7 @@ struct AgentCharacterView: View {
                         radius: agent.isActive ? 10 : 3
                     )
 
-                // 캐릭터 이미지 (Lottie 또는 이모지)
+                // Character image (Lottie or emoji)
                 if let character = agent.character {
                     LottieView(animation: .named(character.fileName, bundle: .module))
                         .playbackMode(.playing(.toProgress(1, loopMode: .loop)))
@@ -30,7 +30,7 @@ struct AgentCharacterView: View {
                         .font(.system(size: size * 0.4))
                 }
 
-                // 활성 상태 인디케이터 (초록 점)
+                // Active state indicator (green dot)
                 Circle()
                     .fill(agent.isActive ? Color.green : Color.gray.opacity(0.4))
                     .frame(width: max(6, size * 0.08), height: max(6, size * 0.08))
@@ -41,7 +41,7 @@ struct AgentCharacterView: View {
                 handleTap()
             }
 
-            // 에이전트 이름 (크기 비례)
+            // Agent name (proportional to size)
             Text(agent.name.isEmpty ? agent.id : agent.name)
                 .font(.system(size: max(9, size * 0.12), weight: .medium))
                 .foregroundColor(agent.isActive ? .primary : .secondary)
@@ -56,14 +56,14 @@ struct AgentCharacterView: View {
         if agent.isActive {
             let name = agent.name.isEmpty ? agent.id : agent.name
             let role = agent.roleDescription.isEmpty ? agent.id : agent.roleDescription
-            let text = "\(name): \(role) 작업 중이에요! 열심히 하고 있어요 💪"
+            let text = "\(name): Working on \(role)! Doing my best 💪"
             BubbleWindowManager.shared.showBubble(text: text)
             AgentTTSService.shared.speak(text)
         } else {
             let name = agent.name.isEmpty ? agent.id : agent.name
-            // 로딩 표시
-            BubbleWindowManager.shared.showBubble(text: "\(name): 음... 🤔")
-            // 웹에서 농담 가져오기
+            // Show loading state
+            BubbleWindowManager.shared.showBubble(text: "\(name): Hmm... 🤔")
+            // Fetch a joke from the web
             JokeFetcher.shared.fetchJoke { joke in
                 DispatchQueue.main.async {
                     let text = "\(name): \(joke)"
@@ -74,7 +74,7 @@ struct AgentCharacterView: View {
         }
     }
 
-    // 배경 그래디언트
+    // Background gradient
     private func backgroundGradient(isActive: Bool) -> LinearGradient {
         if isActive {
             return LinearGradient(
@@ -92,7 +92,7 @@ struct AgentCharacterView: View {
     }
 }
 
-// 말풍선을 별도 NSPanel로 표시 (SwiftUI 리렌더에 영향 안 받음)
+// Show speech bubble in a separate NSPanel (unaffected by SwiftUI re-renders)
 @MainActor
 class BubbleWindowManager {
     static let shared = BubbleWindowManager()
@@ -117,7 +117,7 @@ class BubbleWindowManager {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 280)
 
-                // 꼬리
+                // Tail
                 Image(systemName: "triangle.fill")
                     .font(.system(size: 10))
                     .foregroundColor(Color.black.opacity(0.88))
@@ -139,7 +139,7 @@ class BubbleWindowManager {
         newPanel.collectionBehavior = [.canJoinAllSpaces]
         newPanel.contentView = bubbleView
 
-        // 마우스 위치 근처에 표시
+        // Show near mouse position
         let mouseLocation = NSEvent.mouseLocation
         let x = mouseLocation.x - contentSize.width / 2
         let y = mouseLocation.y + 60
@@ -148,7 +148,7 @@ class BubbleWindowManager {
 
         panel = newPanel
 
-        // 5초 후 자동 닫기
+        // Auto-close after 5 seconds
         hideTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: false) { [weak self] _ in
             DispatchQueue.main.async {
                 self?.panel?.close()
@@ -158,18 +158,18 @@ class BubbleWindowManager {
     }
 }
 
-// 무료 API에서 농담 가져오기 (폴백: 로컬 농담)
+// Fetch jokes from free API (fallback: local jokes)
 class JokeFetcher {
     static let shared = JokeFetcher()
 
-    // icanhazdadjoke.com (무료, 키 불필요)
+    // icanhazdadjoke.com (free, no key required)
     func fetchJoke(completion: @escaping (String) -> Void) {
         let apis: [() -> URLRequest] = [
             { self.dadJokeRequest() },
             { self.jokeApiRequest() },
         ]
 
-        // 랜덤 API 선택
+        // Select a random API
         let request = apis.randomElement()!()
 
         let task = URLSession.shared.dataTask(with: request) { data, response, error in
@@ -187,7 +187,7 @@ class JokeFetcher {
         task.resume()
     }
 
-    // icanhazdadjoke.com
+    // icanhazdadjoke.com request
     private func dadJokeRequest() -> URLRequest {
         var request = URLRequest(url: URL(string: "https://icanhazdadjoke.com/")!)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -196,7 +196,7 @@ class JokeFetcher {
         return request
     }
 
-    // JokeAPI (Programming, Misc, Pun)
+    // JokeAPI request (Programming, Misc, Pun)
     private func jokeApiRequest() -> URLRequest {
         let categories = ["Programming", "Misc", "Pun", "Christmas"]
         let category = categories.randomElement()!
@@ -213,9 +213,9 @@ class JokeFetcher {
 
     private func parseJokeApi(_ data: Data) -> String? {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-        // single type
+        // single type joke
         if let joke = json["joke"] as? String { return joke }
-        // twopart type
+        // two-part type joke
         if let setup = json["setup"] as? String, let delivery = json["delivery"] as? String {
             return "\(setup)\n\(delivery)"
         }
@@ -223,10 +223,10 @@ class JokeFetcher {
     }
 }
 
-// 에이전트 대기 중 랜덤 대사 (네트워크 실패 시 폴백)
+// Random idle quotes for agents (fallback when network fails)
 enum AgentQuotes {
     static let idleQuotes: [String] = [
-        // 유명 밈 & 인터넷 유머
+        // Famous memes & internet humor
         "This is fine. 🔥🐶🔥",
         "나 지금 진지한 거야? 네, 매우 진지합니다 🗿",
         "어... 그건 내일의 내가 할 일이지 😎",
@@ -238,7 +238,7 @@ enum AgentQuotes {
         "피자 먹고 싶다... 하와이안 말고 🍕",
         "현실은 VR보다 그래픽이 좋다 🌎",
 
-        // 세계적 농담
+        // Universal jokes
         "평행우주의 나는 지금 뭐 하고 있을까 🌌",
         "고양이가 세계를 지배하는 건 시간문제야 🐱",
         "달에 가고 싶다... Wi-Fi만 되면 🌙",
@@ -247,19 +247,19 @@ enum AgentQuotes {
         "우주는 넓고 할 건 많다... 근데 넷플릭스가... 📺",
         "잠은 DLC인데 왜 무료지? 💤",
 
-        // 철학적(?) 유머
+        // Philosophical(?) humor
         "내가 생각한다, 고로 배가 고프다 🧠",
         "로봇도 꿈을 꿀까? 전기양의 꿈을? 🤖",
         "오늘 하루도 무사히... 아직 끝 안 났구나 ⏰",
         "행복은 가까이 있어. 냉장고 안에 🧊",
 
-        // 동물 밈
+        // Animal memes
         "도지 왈: such empty, much bored, wow 🐕",
         "카피바라처럼 살고 싶다. 평화롭게 🦫",
         "오리는 공짜로 빵을 먹는다. 부럽다 🦆",
         "고슴도치 딜레마: 가까이 가면 찔리고 멀면 춥고 🦔",
 
-        // 랜덤 재미
+        // Random fun
         "혈액형이 B형이라 B급 유머밖에 못 해요 😂",
         "지구는 둥글다. 하지만 내 인생은 롤러코스터 🎢",
         "음악 추천해줄까? 절대로 포기 안 할 거야 🎵",
@@ -282,13 +282,13 @@ enum AgentQuotes {
     }
 }
 
-// TTS 음성 서비스
+// TTS speech service
 class AgentTTSService {
     static let shared = AgentTTSService()
     private let synthesizer = AVSpeechSynthesizer()
 
     func speak(_ text: String, force: Bool = false) {
-        // 음성 비활성화 시 무시 (force=true면 미리 듣기)
+        // Skip if TTS disabled (force=true for preview)
         if !force {
             let enabled = DispatchQueue.main.sync { AppSettings.shared.ttsEnabled }
             guard enabled else { return }
@@ -298,7 +298,7 @@ class AgentTTSService {
             synthesizer.stopSpeaking(at: .immediate)
         }
 
-        // 이름: 뒤의 내용만 읽기
+        // Read only the content after "name: "
         let content: String
         if let colonRange = text.range(of: ": ") {
             content = String(text[colonRange.upperBound...])

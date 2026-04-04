@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 멀티 캐릭터 Dock 뷰 (레이아웃 모드 지원 + 드래그 배치)
+// Multi-character Dock view (layout mode support + drag placement)
 struct TeamDockView: View {
     @ObservedObject private var configService = AgentsConfigService.shared
     @ObservedObject private var settings = AppSettings.shared
@@ -17,12 +17,12 @@ struct TeamDockView: View {
         .background(Color.clear)
     }
 
-    // 레이아웃 모드에 따른 뷰
+    // View based on layout mode
     @ViewBuilder
     private var layoutView: some View {
         switch settings.layoutMode {
         case .singleRow:
-            // 가로 1줄
+            // Single horizontal row
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     agentViews
@@ -31,7 +31,7 @@ struct TeamDockView: View {
                 .padding(.vertical, 6)
             }
         case .singleColumn:
-            // 세로 1줄
+            // Single vertical column
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 8) {
                     agentViews
@@ -40,7 +40,7 @@ struct TeamDockView: View {
                 .padding(.vertical, 10)
             }
         case .doubleRow:
-            // 가로 2줄
+            // Double horizontal rows
             ScrollView(.horizontal, showsIndicators: false) {
                 let rows = splitIntoRows(configService.agents, count: 2)
                 VStack(spacing: 4) {
@@ -56,7 +56,7 @@ struct TeamDockView: View {
                 .padding(.vertical, 6)
             }
         case .doubleColumn:
-            // 세로 2줄
+            // Double vertical columns
             ScrollView(.vertical, showsIndicators: false) {
                 let cols = splitIntoRows(configService.agents, count: 2)
                 HStack(spacing: 4) {
@@ -74,14 +74,14 @@ struct TeamDockView: View {
         }
     }
 
-    // 에이전트 뷰 목록 (1열/1횡용)
+    // Agent view list (for single row/column)
     private var agentViews: some View {
         ForEach(configService.agents) { agent in
             draggableAgent(agent)
         }
     }
 
-    // 드래그 가능한 에이전트
+    // Draggable agent
     private func draggableAgent(_ agent: TeamAgent) -> some View {
         AgentCharacterView(
             agent: agent,
@@ -102,7 +102,7 @@ struct TeamDockView: View {
         ))
     }
 
-    // N줄로 분할
+    // Split into N rows/columns
     private func splitIntoRows(_ agents: [TeamAgent], count: Int) -> [[TeamAgent]] {
         let perRow = Int(ceil(Double(agents.count) / Double(count)))
         var result: [[TeamAgent]] = []
@@ -121,7 +121,7 @@ struct TeamDockView: View {
             Text("🤖")
                 .font(.system(size: 28))
                 .opacity(0.4)
-            Text("팀 미연결")
+            Text("No Team Connected")
                 .font(.system(size: 9))
                 .foregroundColor(.secondary)
         }
@@ -129,7 +129,7 @@ struct TeamDockView: View {
     }
 }
 
-// 드래그앤드롭 델리게이트
+// Drag-and-drop delegate
 struct AgentDropDelegate: DropDelegate {
     let agent: TeamAgent
     let agents: [TeamAgent]

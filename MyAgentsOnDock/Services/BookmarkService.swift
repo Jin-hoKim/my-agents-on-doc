@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-// Security-Scoped Bookmarks로 프로젝트 폴더 접근 권한 관리
+// Manage project folder access permissions using Security-Scoped Bookmarks
 @MainActor
 class BookmarkService: ObservableObject {
     static let shared = BookmarkService()
@@ -15,22 +15,22 @@ class BookmarkService: ObservableObject {
         resolveBookmark()
     }
 
-    // NSOpenPanel로 프로젝트 폴더 선택
+    // Select project folder via NSOpenPanel
     func selectProjectFolder() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.prompt = "선택"
-        panel.message = "Claude Code 팀 프로젝트 폴더를 선택하세요"
+        panel.prompt = "Select"
+        panel.message = "Select your Claude Code team project folder"
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
         saveBookmark(for: url)
     }
 
-    // 북마크 저장
+    // Save bookmark
     private func saveBookmark(for url: URL) {
-        // 기존 접근 중인 URL 해제
+        // Release currently accessed URL
         stopAccessing()
 
         do {
@@ -43,11 +43,11 @@ class BookmarkService: ObservableObject {
             AppSettings.shared.lastProjectPath = url.path
             startAccessing(url: url)
         } catch {
-            print("[BookmarkService] 북마크 저장 실패: \(error)")
+            print("[BookmarkService] Failed to save bookmark: \(error)")
         }
     }
 
-    // 저장된 북마크 복원
+    // Restore saved bookmark
     private func resolveBookmark() {
         guard let bookmarkData = UserDefaults.standard.data(forKey: bookmarkKey) else { return }
 
@@ -60,34 +60,34 @@ class BookmarkService: ObservableObject {
                 bookmarkDataIsStale: &isStale
             )
             if isStale {
-                // 북마크가 만료된 경우 재저장
+                // Bookmark is stale — re-save
                 saveBookmark(for: url)
             } else {
                 startAccessing(url: url)
             }
         } catch {
-            print("[BookmarkService] 북마크 복원 실패: \(error)")
+            print("[BookmarkService] Failed to restore bookmark: \(error)")
             UserDefaults.standard.removeObject(forKey: bookmarkKey)
         }
     }
 
-    // Security-Scoped Resource 접근 시작
+    // Start accessing Security-Scoped Resource
     private func startAccessing(url: URL) {
         guard url.startAccessingSecurityScopedResource() else {
-            print("[BookmarkService] Security-Scoped Resource 접근 실패")
+            print("[BookmarkService] Failed to access Security-Scoped Resource")
             return
         }
         accessingURL = url
         projectURL = url
     }
 
-    // Security-Scoped Resource 접근 중단
+    // Stop accessing Security-Scoped Resource
     func stopAccessing() {
         accessingURL?.stopAccessingSecurityScopedResource()
         accessingURL = nil
     }
 
-    // 북마크 삭제 (프로젝트 연결 해제)
+    // Delete bookmark (disconnect project)
     func clearBookmark() {
         stopAccessing()
         UserDefaults.standard.removeObject(forKey: bookmarkKey)

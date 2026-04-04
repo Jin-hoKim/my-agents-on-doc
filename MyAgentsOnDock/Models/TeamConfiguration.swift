@@ -1,28 +1,28 @@
 import Foundation
 
-// agents.json에서 개별 에이전트 정의
+// Individual agent definition from agents.json
 struct AgentDefinition: Codable {
     let model: String
     let description: String
     let prompt: String?
 }
 
-// agents.json 전체 구조 (key → AgentDefinition)
+// Full agents.json structure (key → AgentDefinition)
 typealias TeamConfiguration = [String: AgentDefinition]
 
-// agents.json 파싱 결과 상태
+// agents.json parsing result status
 enum ConnectionStatus: Equatable {
-    case notConnected           // 프로젝트 미선택
-    case connected              // agents.json 정상 파싱
-    case fileNotFound           // agents.json 없음
-    case parseError(String)     // JSON 파싱 오류
+    case notConnected           // No project selected
+    case connected              // agents.json parsed successfully
+    case fileNotFound           // agents.json not found
+    case parseError(String)     // JSON parse error
 
     var displayText: String {
         switch self {
-        case .notConnected:         return "프로젝트 폴더를 선택해 주세요"
-        case .connected:            return "팀 감지됨"
-        case .fileNotFound:         return "agents.json 파일이 없습니다"
-        case .parseError(let msg):  return "파싱 오류: \(msg)"
+        case .notConnected:         return "Please select a project folder"
+        case .connected:            return "Team detected"
+        case .fileNotFound:         return "agents.json file not found"
+        case .parseError(let msg):  return "Parse error: \(msg)"
         }
     }
 

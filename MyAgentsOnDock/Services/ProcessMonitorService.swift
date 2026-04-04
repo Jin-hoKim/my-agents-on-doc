@@ -1,7 +1,7 @@
 import Foundation
 import AppKit
 
-// Claude CLI 프로세스 감지 서비스 (3초 간격 폴링)
+// Claude CLI process detection service (polling every 3 seconds)
 @MainActor
 class ProcessMonitorService: ObservableObject {
     static let shared = ProcessMonitorService()
@@ -27,24 +27,24 @@ class ProcessMonitorService: ObservableObject {
         timer = nil
     }
 
-    // 실행 중인 Claude CLI 프로세스 감지
+    // Detect running Claude CLI processes
     private func checkProcesses() {
         guard configService.connectionStatus.isConnected else {
-            print("[ProcessMonitor] 스킵: 연결 안됨 (\(configService.connectionStatus))")
+            print("[ProcessMonitor] Skip: not connected (\(configService.connectionStatus))")
             return
         }
         guard let projectURL = bookmarkService.projectURL else {
-            print("[ProcessMonitor] 스킵: 프로젝트 URL 없음")
+            print("[ProcessMonitor] Skip: no project URL")
             return
         }
 
-        // 메인 스레드 블로킹 방지: 백그라운드에서 ps + lsof 실행
+        // Prevent blocking main thread: run ps + lsof in background
         let projectPath = projectURL.path
         let agentModels = configService.agents.map { ($0.id, $0.model) }
         Task.detached { [weak self] in
             let runningPids = Self.getClaudeProcesses(projectPath: projectPath, agentModels: agentModels)
             if !runningPids.isEmpty {
-                print("[ProcessMonitor] 감지된 프로세스 \(runningPids.count)개: \(runningPids.map { "PID=\($0.pid) roles=\($0.roles)" })")
+                print("[ProcessMonitor] Detected \(runningPids.count) process(es): \(runningPids.map { "PID=\($0.pid) roles=\($0.roles)" })")
             }
             await MainActor.run {
                 guard let self else { return }
@@ -60,9 +60,9 @@ class ProcessMonitorService: ObservableObject {
         }
     }
 
-    // pgrep + ps로 Claude CLI 프로세스 목록 조회 (백그라운드 스레드에서 실행)
+    // Get Claude CLI process list via pgrep + ps (runs on background thread)
     nonisolated private static func getClaudeProcesses(projectPath: String, agentModels: [(id: String, model: String)]) -> [ClaudeProcessInfo] {
-        // 1단계: pgrep으로 claude 프로세스 PID 목록 가져오기
+        // Step 1: Get claude process PIDs via pgrep
         let pgrepTask = Process()
         pgrepTask.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
         pgrepTask.arguments = ["-f", "claude"]
@@ -86,7 +86,7 @@ class ProcessMonitorService: ObservableObject {
 
         if pids.isEmpty { return [] }
 
-        // 2단계: 각 PID에 대해 ps -p PID -o command= 으로 명령어 가져오기
+        // Step 2: For each PID, get command via ps -p PID -o command=
         var results: [ClaudeProcessInfo] = []
 
         for pid in pids {
@@ -109,7 +109,7 @@ class ProcessMonitorService: ObservableObject {
             guard let command = String(data: psData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
                   !command.isEmpty else { continue }
 
-            // claude CLI 메인 프로세스만 (플러그인, 훅 제외)
+            // Only claude CLI main process (exclude plugins, hooks)
             let isClaudeMain = command.contains("/claude ") ||
                                command.contains("/claude\t") ||
                                command.hasPrefix("claude ") ||
@@ -122,10 +122,10 @@ class ProcessMonitorService: ObservableObject {
                   !command.contains("chrome-native") &&
                   !command.contains("cmux") else { continue }
 
-            // 역할 추출
+            // Extract roles
             var roles: [String] = []
 
-            // --agent 또는 --role 플래그
+            // --agent or --role flags
             if let agentMatch = command.range(of: #"--agent[=\s]+(\w+)"#, options: .regularExpression) {
                 let agentStr = String(command[agentMatch])
                     .replacingOccurrences(of: "--agent=", with: "")
@@ -141,7 +141,7 @@ class ProcessMonitorService: ObservableObject {
                 if !roles.contains(roleStr) { roles.append(roleStr) }
             }
 
-            // CWD 기반 매칭
+            // CWD-based matching
             if roles.isEmpty {
                 if let cwd = getProcessCwd(pid: pid) {
                     if cwd == projectPath || cwd.hasPrefix(projectPath + "/") {
@@ -159,7 +159,7 @@ class ProcessMonitorService: ObservableObject {
         return results
     }
 
-    // 특정 PID의 작업 디렉토리(CWD) 조회
+    // Get the working directory (CWD) for a specific PID
     nonisolated private static func getProcessCwd(pid: Int) -> String? {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
@@ -179,7 +179,7 @@ class ProcessMonitorService: ObservableObject {
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         guard let output = String(data: data, encoding: .utf8) else { return nil }
 
-        // lsof -Fn 출력에서 "n/path" 행 찾기
+        // Find "n/path" line in lsof -Fn output
         for line in output.components(separatedBy: "\n") {
             if line.hasPrefix("n/") {
                 return String(line.dropFirst(1))
@@ -188,9 +188,9 @@ class ProcessMonitorService: ObservableObject {
         return nil
     }
 
-    // 명령줄에서 모델 정보로 역할 추론 (명시적 플래그만 사용)
+    // Infer role from command line model info (explicit flags only)
     nonisolated private static func inferRoleFromCommand(_ command: String, agentModels: [(id: String, model: String)]) -> String? {
-        // --model 플래그 추출
+        // Extract --model flag
         guard let modelMatch = command.range(of: #"--model[=\s]+(\S+)"#, options: .regularExpression) else {
             return nil
         }
@@ -200,13 +200,13 @@ class ProcessMonitorService: ObservableObject {
             .trimmingCharacters(in: .whitespaces)
             .lowercased()
 
-        // 해당 모델을 사용하는 에이전트가 하나뿐이면 확정
+        // If only one agent uses this model, it's a definitive match
         let matchingAgents = agentModels.filter { $0.model.lowercased() == modelStr }
         if matchingAgents.count == 1 {
             return matchingAgents[0].id
         }
 
-        // opus 모델은 보통 leader
+        // opus model is usually leader
         if modelStr.contains("opus") {
             return "leader"
         }
@@ -215,7 +215,7 @@ class ProcessMonitorService: ObservableObject {
     }
 }
 
-// 프로세스 정보 구조체
+// Process information struct
 struct ClaudeProcessInfo {
     let pid: Int
     let roles: [String]

@@ -1,6 +1,6 @@
 import Foundation
 
-// 9종 캐릭터 타입
+// 9 character types
 enum RobotCharacter: String, Codable, CaseIterable {
     case black = "Black robot"
     case blue = "Blue robot"
@@ -12,25 +12,25 @@ enum RobotCharacter: String, Codable, CaseIterable {
     case white = "White robot"
     case yellow = "Yellow robot"
 
-    // Lottie JSON 파일명
+    // Lottie JSON file name
     var fileName: String { rawValue }
 
-    // 표시명
+    // Display name
     var displayName: String {
         switch self {
-        case .black:  return "블랙"
-        case .blue:   return "블루"
-        case .green:  return "그린"
-        case .marine: return "마린"
-        case .pink:   return "핑크"
-        case .purple: return "퍼플"
-        case .red:    return "레드"
-        case .white:  return "화이트"
-        case .yellow: return "옐로"
+        case .black:  return "Black"
+        case .blue:   return "Blue"
+        case .green:  return "Green"
+        case .marine: return "Marine"
+        case .pink:   return "Pink"
+        case .purple: return "Purple"
+        case .red:    return "Red"
+        case .white:  return "White"
+        case .yellow: return "Yellow"
         }
     }
 
-    // 대표 색상
+    // Representative color
     var color: String {
         switch self {
         case .black:  return "#333333"
@@ -46,18 +46,18 @@ enum RobotCharacter: String, Codable, CaseIterable {
     }
 }
 
-// 팀 에이전트 데이터 모델
+// Team agent data model
 struct TeamAgent: Identifiable, Codable, Equatable {
-    let id: String              // 역할명 (agents.json key)
+    let id: String              // Role name (agents.json key)
     let model: String           // opus/sonnet/haiku
-    var name: String            // 사용자 지정 이름
-    let roleDescription: String // 역할 설명
-    let emoji: String           // 역할별 매핑 이모지
-    var character: RobotCharacter? // 선택된 캐릭터 이미지
-    var isActive: Bool = false  // 현재 실행 중 여부
-    var pid: String? = nil      // 프로세스 ID
+    var name: String            // User-defined name
+    let roleDescription: String // Role description
+    let emoji: String           // Role-mapped emoji
+    var character: RobotCharacter? // Selected character image
+    var isActive: Bool = false  // Currently running
+    var pid: String? = nil      // Process ID
 
-    // 모델 약어 (뱃지용)
+    // Model abbreviation (for badge)
     var modelBadge: String {
         switch model.lowercased() {
         case "opus":   return "OP"
@@ -67,7 +67,7 @@ struct TeamAgent: Identifiable, Codable, Equatable {
         }
     }
 
-    // 모델 표시명
+    // Model display name
     var modelDisplayName: String {
         switch model.lowercased() {
         case "opus":   return "Claude Opus"

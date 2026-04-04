@@ -1,7 +1,7 @@
 import Foundation
 import Combine
 
-// agents.json 파싱 및 FSEvents 감시 서비스
+// agents.json parsing and FSEvents file watch service
 @MainActor
 class AgentsConfigService: ObservableObject {
     static let shared = AgentsConfigService()
@@ -15,7 +15,7 @@ class AgentsConfigService: ObservableObject {
     private var bookmarkService: BookmarkService { BookmarkService.shared }
 
     init() {
-        // 앱 시작 시 저장된 프로젝트로 자동 로드
+        // Auto-load saved project on app start
         NotificationCenter.default.addObserver(
             forName: .projectURLChanged,
             object: nil,
@@ -27,7 +27,7 @@ class AgentsConfigService: ObservableObject {
         }
     }
 
-    // agents.json 로드 및 파싱
+    // Load and parse agents.json
     func reload() {
         guard let projectURL = bookmarkService.projectURL else {
             connectionStatus = .notConnected
@@ -61,9 +61,9 @@ class AgentsConfigService: ObservableObject {
         }
     }
 
-    // TeamConfiguration → [TeamAgent] 변환
+    // Convert TeamConfiguration → [TeamAgent]
     private func buildAgents(from config: TeamConfiguration) -> [TeamAgent] {
-        // 역할명 기준 정렬 (leader 우선, 나머지 알파벳 순)
+        // Sort by role name (leader first, rest alphabetically)
         let roleOrder = ["leader", "frontend", "backend", "database", "designer", "qa", "devops"]
 
         return config
@@ -84,9 +84,9 @@ class AgentsConfigService: ObservableObject {
             }
     }
 
-    // "이름 — 설명" 또는 "이름 - 설명" 파싱
+    // Parse "name — description" or "name - description"
     private func parseDescription(_ description: String) -> (name: String, roleDescription: String) {
-        // em dash(—) 또는 " - " 구분자로 분리
+        // Split by em dash (—) or " - " separator
         let separators = ["—", " - ", "–"]
         for separator in separators {
             if let range = description.range(of: separator) {
@@ -97,11 +97,11 @@ class AgentsConfigService: ObservableObject {
                 }
             }
         }
-        // 구분자 없으면 전체를 이름으로
+        // No separator — use entire string as name
         return (description, "")
     }
 
-    // FSEvents로 agents.json 파일 변경 감지
+    // Detect agents.json file changes via FSEvents
     private func startMonitoring(agentsFileURL: URL) {
         stopMonitoring()
 
@@ -116,7 +116,7 @@ class AgentsConfigService: ObservableObject {
         )
 
         source.setEventHandler { [weak self] in
-            // debounce 0.5초
+            // debounce 0.5s
             self?.debounceWorkItem?.cancel()
             let workItem = DispatchWorkItem {
                 Task { @MainActor [weak self] in
@@ -143,16 +143,16 @@ class AgentsConfigService: ObservableObject {
         }
     }
 
-    // 에이전트 정보 업데이트 (캐릭터 이미지, 이름 등)
+    // Update agent info (character image, name, etc.)
     func updateAgent(at index: Int, with updated: TeamAgent) {
         guard index >= 0, index < agents.count else { return }
         agents[index].name = updated.name
         agents[index].character = updated.character
-        // 변경사항 저장
+        // Save changes
         saveCustomizations()
     }
 
-    // 커스터마이징 정보 로컬 저장
+    // Save customization info locally
     private func saveCustomizations() {
         let customs = agents.map { agent in
             AgentCustomization(id: agent.id, name: agent.name, character: agent.character)
@@ -162,12 +162,12 @@ class AgentsConfigService: ObservableObject {
         }
     }
 
-    // 커스터마이징 정보 로드 및 적용 (이름, 캐릭터, 순서 복원)
+    // Load and apply customization info (name, character, order restoration)
     private func applyCustomizations() {
         guard let data = UserDefaults.standard.data(forKey: "agentCustomizations"),
               let customs = try? JSONDecoder().decode([AgentCustomization].self, from: data) else { return }
 
-        // 이름, 캐릭터 적용
+        // Apply name and character
         for custom in customs {
             if let index = agents.firstIndex(where: { $0.id == custom.id }) {
                 if let name = custom.name { agents[index].name = name }
@@ -175,7 +175,7 @@ class AgentsConfigService: ObservableObject {
             }
         }
 
-        // 저장된 순서대로 정렬
+        // Sort by saved order
         let savedOrder = customs.map { $0.id }
         if !savedOrder.isEmpty {
             agents.sort { a, b in
@@ -186,7 +186,7 @@ class AgentsConfigService: ObservableObject {
         }
     }
 
-    // 에이전트 순서 변경 (드래그앤드롭)
+    // Reorder agents (drag-and-drop)
     func reorderAgent(from: Int, to: Int) {
         guard from != to,
               from >= 0, from < agents.count,
@@ -196,7 +196,7 @@ class AgentsConfigService: ObservableObject {
         saveCustomizations()
     }
 
-    // 에이전트 활성 상태 업데이트 (값 변경 시에만 Published 트리거)
+    // Update agent active state (triggers Published only on actual change)
     func updateAgentActivity(id: String, isActive: Bool, pid: String? = nil) {
         if let index = agents.firstIndex(where: { $0.id == id }) {
             let changed = agents[index].isActive != isActive || agents[index].pid != pid
@@ -207,10 +207,10 @@ class AgentsConfigService: ObservableObject {
         }
     }
 
-    // 싱글톤이므로 앱 종료 시 OS가 파일 디스크립터 정리
+    // Singleton — OS cleans up file descriptors on app exit
 }
 
-// 에이전트 커스터마이징 저장용 모델
+// Model for saving agent customizations
 struct AgentCustomization: Codable {
     let id: String
     let name: String?
