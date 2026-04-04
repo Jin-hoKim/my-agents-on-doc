@@ -7,19 +7,9 @@ struct AgentCharacterView: View {
     let agent: TeamAgent
     let size: CGFloat
 
-    @StateObject private var bubbleState = BubbleState()
-
     var body: some View {
         VStack(spacing: 3) {
             ZStack {
-                // 말풍선
-                if bubbleState.isVisible {
-                    SpeechBubble(text: bubbleState.text, maxWidth: max(160, size * 1.5))
-                        .offset(y: -(size * 0.55 + 30))
-                        .transition(.scale.combined(with: .opacity))
-                        .zIndex(10)
-                }
-
                 // 배경 원형 그래디언트
                 Circle()
                     .fill(backgroundGradient(isActive: agent.isActive))
@@ -60,7 +50,6 @@ struct AgentCharacterView: View {
                 .frame(maxWidth: size + 20)
         }
         .frame(width: size + 20, height: size + max(30, size * 0.25))
-        .animation(.spring(duration: 0.3), value: bubbleState.isVisible)
     }
 
     private func handleTap() {
@@ -73,7 +62,7 @@ struct AgentCharacterView: View {
             text = AgentQuotes.random(for: agent)
         }
 
-        bubbleState.show(text: text)
+        BubbleWindowManager.shared.showBubble(text: text)
         AgentTTSService.shared.speak(text)
     }
 
@@ -95,61 +84,69 @@ struct AgentCharacterView: View {
     }
 }
 
-// 말풍선 상태 (리렌더에도 유지되는 ObservableObject)
-class BubbleState: ObservableObject {
-    @Published var isVisible = false
-    @Published var text = ""
-    private var timer: Timer?
+// 말풍선을 별도 NSPanel로 표시 (SwiftUI 리렌더에 영향 안 받음)
+@MainActor
+class BubbleWindowManager {
+    static let shared = BubbleWindowManager()
+    private var panel: NSPanel?
+    private var hideTimer: Timer?
 
-    func show(text: String) {
-        timer?.invalidate()
-        self.text = text
-        withAnimation { isVisible = true }
+    func showBubble(text: String) {
+        hideTimer?.invalidate()
+        panel?.close()
 
-        timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: false) { [weak self] _ in
+        let bubbleView = NSHostingView(rootView:
+            VStack(spacing: 0) {
+                Text(text)
+                    .font(.system(size: 13))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.black.opacity(0.88))
+                    )
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 280)
+
+                // 꼬리
+                Image(systemName: "triangle.fill")
+                    .font(.system(size: 10))
+                    .foregroundColor(Color.black.opacity(0.88))
+                    .rotationEffect(.degrees(180))
+            }
+        )
+
+        let contentSize = bubbleView.fittingSize
+        let newPanel = NSPanel(
+            contentRect: NSRect(origin: .zero, size: contentSize),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        newPanel.isOpaque = false
+        newPanel.backgroundColor = .clear
+        newPanel.hasShadow = true
+        newPanel.level = .floating + 1
+        newPanel.collectionBehavior = [.canJoinAllSpaces]
+        newPanel.contentView = bubbleView
+
+        // 마우스 위치 근처에 표시
+        let mouseLocation = NSEvent.mouseLocation
+        let x = mouseLocation.x - contentSize.width / 2
+        let y = mouseLocation.y + 20
+        newPanel.setFrameOrigin(NSPoint(x: x, y: y))
+        newPanel.orderFront(nil)
+
+        panel = newPanel
+
+        // 5초 후 자동 닫기
+        hideTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: false) { [weak self] _ in
             DispatchQueue.main.async {
-                withAnimation { self?.isVisible = false }
+                self?.panel?.close()
+                self?.panel = nil
             }
         }
-    }
-}
-
-// 말풍선 뷰
-struct SpeechBubble: View {
-    let text: String
-    let maxWidth: CGFloat
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Text(text)
-                .font(.system(size: 12))
-                .foregroundColor(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.black.opacity(0.85))
-                )
-                .frame(maxWidth: maxWidth)
-                .multilineTextAlignment(.center)
-
-            // 말풍선 꼬리
-            Triangle()
-                .fill(Color.black.opacity(0.85))
-                .frame(width: 12, height: 8)
-        }
-    }
-}
-
-// 말풍선 꼬리 삼각형
-struct Triangle: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.midX - rect.width / 2, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.midX + rect.width / 2, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
-        path.closeSubpath()
-        return path
     }
 }
 
@@ -193,7 +190,6 @@ class AgentTTSService {
     private let synthesizer = AVSpeechSynthesizer()
 
     func speak(_ text: String) {
-        // 이전 음성 중지
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)
         }
@@ -207,13 +203,11 @@ class AgentTTSService {
         }
 
         let utterance = AVSpeechUtterance(string: content)
-        // 한국어 음성 우선, 없으면 기본 음성 사용
         if let koVoice = AVSpeechSynthesisVoice(language: "ko-KR") {
             utterance.voice = koVoice
         }
         utterance.rate = 0.5
         utterance.volume = 0.7
-        utterance.prefersAssistiveTechnologySettings = false
         synthesizer.speak(utterance)
     }
 }

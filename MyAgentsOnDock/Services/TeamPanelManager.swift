@@ -122,8 +122,7 @@ class TeamDockPanel: NSPanel {
         let maxHeight = screen.frame.height * 0.8
 
         let perAgentW: CGFloat = charSize + 28
-        let bubbleSpace: CGFloat = 60  // 말풍선 공간
-        let perAgentH: CGFloat = charSize + max(30, charSize * 0.25) + 16 + bubbleSpace
+        let perAgentH: CGFloat = charSize + max(30, charSize * 0.25) + 16
 
         var width: CGFloat
         var height: CGFloat
