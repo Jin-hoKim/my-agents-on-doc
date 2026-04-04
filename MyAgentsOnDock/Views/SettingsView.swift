@@ -80,7 +80,28 @@ struct SettingsView: View {
                 }
             }
 
-            // 섹션 3: 프로세스 감시
+            // 섹션 3: 음성 설정
+            Section("음성") {
+                Toggle("음성 사용", isOn: $settings.ttsEnabled)
+
+                if settings.ttsEnabled {
+                    Picker("음성 종류", selection: Binding(
+                        get: { settings.ttsVoice },
+                        set: { settings.ttsVoice = $0 }
+                    )) {
+                        ForEach(TTSVoice.allCases, id: \.self) { voice in
+                            Text(voice.displayName).tag(voice)
+                        }
+                    }
+
+                    Button("미리 듣기") {
+                        AgentTTSService.shared.speak("안녕하세요! 저는 당신의 에이전트입니다.", force: true)
+                    }
+                    .controlSize(.small)
+                }
+            }
+
+            // 섹션 4: 프로세스 감시
             Section("프로세스 감시") {
                 LabeledContent("감시 간격") {
                     HStack {
@@ -103,7 +124,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 440, height: 560)
+        .frame(width: 440, height: 640)
         .navigationTitle("설정")
     }
 

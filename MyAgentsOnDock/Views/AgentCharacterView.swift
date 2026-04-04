@@ -287,7 +287,13 @@ class AgentTTSService {
     static let shared = AgentTTSService()
     private let synthesizer = AVSpeechSynthesizer()
 
-    func speak(_ text: String) {
+    func speak(_ text: String, force: Bool = false) {
+        // 음성 비활성화 시 무시 (force=true면 미리 듣기)
+        if !force {
+            let enabled = DispatchQueue.main.sync { AppSettings.shared.ttsEnabled }
+            guard enabled else { return }
+        }
+
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)
         }
@@ -300,10 +306,10 @@ class AgentTTSService {
             content = text
         }
 
+        let voiceId = DispatchQueue.main.sync { AppSettings.shared.ttsVoiceRaw }
         let utterance = AVSpeechUtterance(string: content)
-        if let koVoice = AVSpeechSynthesisVoice(language: "ko-KR") {
-            utterance.voice = koVoice
-        }
+        utterance.voice = AVSpeechSynthesisVoice(identifier: voiceId)
+            ?? AVSpeechSynthesisVoice(language: "ko-KR")
         utterance.rate = 0.5
         utterance.volume = 0.7
         synthesizer.speak(utterance)
