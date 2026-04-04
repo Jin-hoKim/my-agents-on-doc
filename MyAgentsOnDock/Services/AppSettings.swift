@@ -2,11 +2,13 @@ import SwiftUI
 import Combine
 
 // 캐릭터 배치 레이아웃
+// 캐릭터 배치 레이아웃
 enum LayoutMode: String, CaseIterable {
-    case singleRow = "1열"      // 가로 1줄
-    case singleColumn = "1횡"   // 세로 1줄
-    case doubleRow = "2열"      // 가로 2줄
-    case doubleColumn = "2횡"   // 세로 2줄
+    case singleRow = "1열"       // 가로 1줄
+    case singleColumn = "1횡"    // 세로 1줄
+    case doubleRow = "2열"       // 가로 2줄
+    case doubleColumn = "2횡"    // 세로 2줄
+    case freeform = "자유 배치"   // 개별 드래그 이동
 }
 
 // 앱 설정 관리 (UserDefaults 기반)

@@ -162,15 +162,26 @@ class AgentsConfigService: ObservableObject {
         }
     }
 
-    // 커스터마이징 정보 로드 및 적용
+    // 커스터마이징 정보 로드 및 적용 (이름, 캐릭터, 순서 복원)
     private func applyCustomizations() {
         guard let data = UserDefaults.standard.data(forKey: "agentCustomizations"),
               let customs = try? JSONDecoder().decode([AgentCustomization].self, from: data) else { return }
 
+        // 이름, 캐릭터 적용
         for custom in customs {
             if let index = agents.firstIndex(where: { $0.id == custom.id }) {
                 if let name = custom.name { agents[index].name = name }
                 agents[index].character = custom.character
+            }
+        }
+
+        // 저장된 순서대로 정렬
+        let savedOrder = customs.map { $0.id }
+        if !savedOrder.isEmpty {
+            agents.sort { a, b in
+                let ai = savedOrder.firstIndex(of: a.id) ?? Int.max
+                let bi = savedOrder.firstIndex(of: b.id) ?? Int.max
+                return ai < bi
             }
         }
     }
