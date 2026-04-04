@@ -50,11 +50,14 @@ class AgentsConfigService: ObservableObject {
             let data = try Data(contentsOf: agentsFileURL)
             let config = try JSONDecoder().decode(TeamConfiguration.self, from: data)
             agents = buildAgents(from: config)
+            applyCustomizations()
             connectionStatus = .connected
             startMonitoring(agentsFileURL: agentsFileURL)
+            NotificationCenter.default.post(name: .agentsDidUpdate, object: nil)
         } catch {
             connectionStatus = .parseError(error.localizedDescription)
             agents = []
+            NotificationCenter.default.post(name: .agentsDidUpdate, object: nil)
         }
     }
 
@@ -140,6 +143,38 @@ class AgentsConfigService: ObservableObject {
         }
     }
 
+    // 에이전트 정보 업데이트 (캐릭터 이미지, 이름 등)
+    func updateAgent(at index: Int, with updated: TeamAgent) {
+        guard index >= 0, index < agents.count else { return }
+        agents[index].name = updated.name
+        agents[index].character = updated.character
+        // 변경사항 저장
+        saveCustomizations()
+    }
+
+    // 커스터마이징 정보 로컬 저장
+    private func saveCustomizations() {
+        let customs = agents.map { agent in
+            AgentCustomization(id: agent.id, name: agent.name, character: agent.character)
+        }
+        if let data = try? JSONEncoder().encode(customs) {
+            UserDefaults.standard.set(data, forKey: "agentCustomizations")
+        }
+    }
+
+    // 커스터마이징 정보 로드 및 적용
+    private func applyCustomizations() {
+        guard let data = UserDefaults.standard.data(forKey: "agentCustomizations"),
+              let customs = try? JSONDecoder().decode([AgentCustomization].self, from: data) else { return }
+
+        for custom in customs {
+            if let index = agents.firstIndex(where: { $0.id == custom.id }) {
+                if let name = custom.name { agents[index].name = name }
+                agents[index].character = custom.character
+            }
+        }
+    }
+
     // 에이전트 활성 상태 업데이트
     func updateAgentActivity(id: String, isActive: Bool, pid: String? = nil) {
         if let index = agents.firstIndex(where: { $0.id == id }) {
@@ -151,6 +186,14 @@ class AgentsConfigService: ObservableObject {
     // 싱글톤이므로 앱 종료 시 OS가 파일 디스크립터 정리
 }
 
+// 에이전트 커스터마이징 저장용 모델
+struct AgentCustomization: Codable {
+    let id: String
+    let name: String?
+    let character: RobotCharacter?
+}
+
 extension Notification.Name {
     static let projectURLChanged = Notification.Name("projectURLChanged")
+    static let agentsDidUpdate = Notification.Name("agentsDidUpdate")
 }

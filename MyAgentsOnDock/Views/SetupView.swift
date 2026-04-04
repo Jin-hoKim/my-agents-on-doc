@@ -6,10 +6,16 @@ struct SetupView: View {
     @ObservedObject private var bookmarkService = BookmarkService.shared
     @ObservedObject private var configService = AgentsConfigService.shared
 
-    // NSWindow에 NSHostingView로 임베딩되므로 @Environment(\.dismiss) 미동작
-    // 대신 NSApp.keyWindow?.close() 직접 사용
+    // NSHostingView 임베딩이므로 뷰가 속한 윈도우를 직접 찾아 닫기
     private func closeWindow() {
-        NSApp.keyWindow?.close()
+        DispatchQueue.main.async {
+            // 이 뷰를 호스팅하는 윈도우 찾기
+            if let window = NSApp.windows.first(where: { $0.title == "팀 프로젝트 연결" }) {
+                window.close()
+            } else {
+                NSApp.keyWindow?.close()
+            }
+        }
     }
 
     var body: some View {
@@ -244,8 +250,10 @@ struct SetupView: View {
         HStack {
             if bookmarkService.projectURL != nil {
                 Button("연결 해제") {
-                    bookmarkService.clearBookmark()
-                    configService.reload()
+                    DispatchQueue.main.async {
+                        bookmarkService.clearBookmark()
+                        configService.reload()
+                    }
                 }
                 .foregroundColor(.red)
                 .buttonStyle(.plain)
@@ -256,10 +264,8 @@ struct SetupView: View {
             Button("닫기") {
                 closeWindow()
             }
-            .keyboardShortcut(.escape)
 
             Button("팀 연결") {
-                // 패널 표시 활성화 후 창 닫기
                 AppSettings.shared.isPanelVisible = true
                 closeWindow()
             }

@@ -42,7 +42,7 @@ Claude Code 팀(agents.json)을 자동 감지하여 Dock 위에 여러 에이전
 일반 App Store 사용자가 agents.json을 직접 편집하지 않고, 앱 설정창에서 팀을 구성할 수 있도록 한다.
 
 #### 6-1: 에이전트 캐릭터 이미지 (8종)
-- 8개 Lottie 애니메이션 캐릭터 번들 제공
+- 9개 Lottie 애니메이션 캐릭터 번들 제공 (Black/Blue/Green/Marine/Pink/Purple/Red/White/Yellow robot)
 - 각 캐릭터는 20가지 표정 상태 지원 (Solo 모드와 동일)
 - Resources/Animations/ 에 캐릭터별 JSON 파일 배치
 
@@ -54,7 +54,7 @@ Claude Code 팀(agents.json)을 자동 감지하여 Dock 위에 여러 에이전
   - **모델**: Haiku / Sonnet / Opus 드롭다운
   - **역할**: 자유 입력 (예: 리더, 프론트엔드, 백엔드)
 - 저장 시 앱 내부 JSON으로 저장 + Dock 캐릭터 즉시 반영
-- 최대 에이전트 수: 8개 (이미지 수에 맞춤)
+- 최대 에이전트 수: 9개 (캐릭터 이미지 수에 맞춤)
 
 #### 6-3: 데이터 저장 구조
 - 앱 내부 저장: Application Support/team-config.json

@@ -24,19 +24,22 @@ class TeamPanelManager {
     }
 
     private func setupObservers() {
-        // 패널 가시성 변경 감지
+        // 패널 가시성 및 캐릭터 크기 변경 감지
         settingsObserver = NotificationCenter.default.addObserver(
             forName: UserDefaults.didChangeNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                let visible = AppSettings.shared.isPanelVisible
-                if visible {
+                let settings = AppSettings.shared
+                if settings.isPanelVisible {
                     self?.panel?.orderFront(nil)
                 } else {
                     self?.panel?.orderOut(nil)
                 }
+                // 캐릭터 크기 변경 시 패널 리사이즈
+                let agentCount = AgentsConfigService.shared.agents.count
+                self?.panel?.updateForAgents(count: agentCount)
             }
         }
 
@@ -60,13 +63,18 @@ class TeamPanelManager {
 
 // Dock 위 팀 캐릭터 패널 (NSPanel)
 class TeamDockPanel: NSPanel {
-    private let characterSize: CGFloat = 60.0
     private let characterSpacing: CGFloat = 8.0
     private let horizontalPadding: CGFloat = 16.0
     private let verticalPadding: CGFloat = 8.0
 
+    // 설정에서 캐릭터 크기 가져오기
+    private var currentCharacterSize: CGFloat {
+        CGFloat(AppSettings.shared.characterSize)
+    }
+
     init() {
-        let initialSize = NSSize(width: 100, height: characterSize + 40)
+        let charSize = CGFloat(AppSettings.shared.characterSize)
+        let initialSize = NSSize(width: 100, height: charSize + 50)
         super.init(
             contentRect: NSRect(origin: .zero, size: initialSize),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -108,19 +116,21 @@ class TeamDockPanel: NSPanel {
     // agents 수에 따른 패널 크기 업데이트
     func updateForAgents(count: Int) {
         let agentCount = max(count, 1)
-        let totalWidth = calculateWidth(agentCount: agentCount)
-        let totalHeight = characterSize + 40 + verticalPadding * 2
+        let charSize = currentCharacterSize
+        let totalWidth = calculateWidth(agentCount: agentCount, charSize: charSize)
+        // 캐릭터 뷰 높이: size + 38 (AgentCharacterView) + 상하 패딩
+        let totalHeight = charSize + 38 + verticalPadding * 2 + 12
         setContentSize(NSSize(width: totalWidth, height: totalHeight))
         positionAboveDock()
     }
 
     // 패널 너비 계산
-    private func calculateWidth(agentCount: Int) -> CGFloat {
+    private func calculateWidth(agentCount: Int, charSize: CGFloat) -> CGFloat {
         guard let screen = NSScreen.main else { return 200 }
-        let maxWidth = screen.frame.width * 0.8
-        let calculated = (characterSize + characterSpacing) * CGFloat(agentCount)
-            - characterSpacing
-            + horizontalPadding * 2
+        let maxWidth = screen.frame.width * 0.95
+        // 각 캐릭터 영역: 캐릭터 크기 + 여유 공간
+        let perAgent: CGFloat = max(charSize + 10, 80)
+        let calculated = perAgent * CGFloat(agentCount) + 40  // 좌우 여백
         return min(calculated, maxWidth)
     }
 
