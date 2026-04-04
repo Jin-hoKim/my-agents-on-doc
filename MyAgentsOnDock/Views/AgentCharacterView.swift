@@ -1,4 +1,5 @@
 import SwiftUI
+import Lottie
 
 // 개별 에이전트 캐릭터 뷰
 struct AgentCharacterView: View {
@@ -19,16 +20,24 @@ struct AgentCharacterView: View {
                         radius: agent.isActive ? 10 : 3
                     )
 
-                // 이모지 캐릭터
-                Text(agent.emoji)
-                    .font(.system(size: size * 0.4))
-                    .scaleEffect(isAnimating && agent.isActive ? 1.1 : 1.0)
-                    .animation(
-                        agent.isActive
-                            ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
-                            : .easeInOut(duration: 0.3),
-                        value: isAnimating
-                    )
+                // 캐릭터 이미지 (Lottie 또는 이모지)
+                if let character = agent.character {
+                    LottieView(animation: .named(character.fileName, bundle: .module))
+                        .playbackMode(agent.isActive
+                            ? .playing(.toProgress(1, loopMode: .loop))
+                            : .playing(.toProgress(0.5, loopMode: .playOnce)))
+                        .frame(width: size * 0.7, height: size * 0.7)
+                } else {
+                    Text(agent.emoji)
+                        .font(.system(size: size * 0.4))
+                        .scaleEffect(isAnimating && agent.isActive ? 1.1 : 1.0)
+                        .animation(
+                            agent.isActive
+                                ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
+                                : .easeInOut(duration: 0.3),
+                            value: isAnimating
+                        )
+                }
 
                 // 활성 상태 인디케이터 (초록 점)
                 Circle()
