@@ -154,15 +154,31 @@ struct TeamAgentRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 // 이름 편집
                 if isEditingName {
-                    TextField("이름 입력", text: $editingName, onCommit: {
-                        var updated = agent
-                        updated.name = editingName
-                        onUpdate(updated)
-                        isEditingName = false
-                    })
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 13, weight: .medium))
-                    .frame(maxWidth: 150)
+                    HStack(spacing: 4) {
+                        TextField("이름 입력", text: $editingName)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 13, weight: .medium))
+                            .frame(maxWidth: 130)
+                            .onSubmit {
+                                saveName()
+                            }
+                        Button {
+                            saveName()
+                        } label: {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.green)
+                        }
+                        .buttonStyle(.plain)
+                        Button {
+                            isEditingName = false
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 } else {
                     HStack(spacing: 4) {
                         Text(agent.name.isEmpty ? agent.id : agent.name)
@@ -207,6 +223,13 @@ struct TeamAgentRow: View {
                 .frame(width: 8, height: 8)
         }
         .padding(.vertical, 4)
+    }
+
+    private func saveName() {
+        var updated = agent
+        updated.name = editingName.trimmingCharacters(in: .whitespaces)
+        onUpdate(updated)
+        isEditingName = false
     }
 
     private var characterBackground: Color {

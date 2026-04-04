@@ -19,6 +19,6 @@ class AppSettings: ObservableObject {
     @AppStorage("lastProjectPath") var lastProjectPath: String = ""
 
     // 캐릭터 사이즈 범위
-    static let minSize: Double = 40.0
-    static let maxSize: Double = 100.0
+    static let minSize: Double = 60.0
+    static let maxSize: Double = 300.0
 }
