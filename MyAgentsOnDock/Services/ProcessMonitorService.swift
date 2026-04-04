@@ -29,14 +29,23 @@ class ProcessMonitorService: ObservableObject {
 
     // 실행 중인 Claude CLI 프로세스 감지
     private func checkProcesses() {
-        guard configService.connectionStatus.isConnected else { return }
-        guard let projectURL = bookmarkService.projectURL else { return }
+        guard configService.connectionStatus.isConnected else {
+            print("[ProcessMonitor] 스킵: 연결 안됨 (\(configService.connectionStatus))")
+            return
+        }
+        guard let projectURL = bookmarkService.projectURL else {
+            print("[ProcessMonitor] 스킵: 프로젝트 URL 없음")
+            return
+        }
 
         // 메인 스레드 블로킹 방지: 백그라운드에서 ps + lsof 실행
         let projectPath = projectURL.path
         let agentModels = configService.agents.map { ($0.id, $0.model) }
         Task.detached { [weak self] in
             let runningPids = Self.getClaudeProcesses(projectPath: projectPath, agentModels: agentModels)
+            if !runningPids.isEmpty {
+                print("[ProcessMonitor] 감지된 프로세스 \(runningPids.count)개: \(runningPids.map { "PID=\($0.pid) roles=\($0.roles)" })")
+            }
             await MainActor.run {
                 guard let self else { return }
                 for agent in self.configService.agents {
@@ -118,7 +127,9 @@ class ProcessMonitorService: ObservableObject {
             let isClaudeProcess = command.contains("/claude ") ||
                                   command.contains("/claude\t") ||
                                   command.hasPrefix("claude ") ||
-                                  command.contains("bin/claude")
+                                  command.contains("bin/claude") ||
+                                  command.contains("/claude -") ||
+                                  command.hasSuffix("/claude")
             guard isClaudeProcess else { continue }
             // 플러그인, 훅, 보조 프로세스 제외
             guard !command.contains("claude-hook") &&
