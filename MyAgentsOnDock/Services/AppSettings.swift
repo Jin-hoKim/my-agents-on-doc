@@ -8,7 +8,6 @@ enum LayoutMode: String, CaseIterable {
     case singleColumn = "1횡"    // 세로 1줄
     case doubleRow = "2열"       // 가로 2줄
     case doubleColumn = "2횡"    // 세로 2줄
-    case freeform = "자유 배치"   // 개별 드래그 이동
 }
 
 // 앱 설정 관리 (UserDefaults 기반)

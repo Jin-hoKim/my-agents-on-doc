@@ -2,22 +2,26 @@ import AppKit
 import SwiftUI
 import Combine
 
-// 멀티 캐릭터 패널 관리 (그룹 모드 + 개별 이동 모드)
+// 멀티 캐릭터 패널 관리
 @MainActor
 class TeamPanelManager {
     static let shared = TeamPanelManager()
 
-    // 그룹 패널 (1열/1횡/2열/2횡 모드)
-    private var groupPanel: TeamDockPanel?
-    // 개별 패널 (개별 이동 모드)
-    private var individualPanels: [String: AgentDockPanel] = [:]
-
+    private var panel: TeamDockPanel?
     private var settingsObserver: NSObjectProtocol?
     private var agentsObserver: AnyCancellable?
 
     func setup() {
-        updatePanels()
+        createPanel()
         setupObservers()
+    }
+
+    private func createPanel() {
+        let newPanel = TeamDockPanel()
+        panel = newPanel
+        if AppSettings.shared.isPanelVisible {
+            newPanel.orderFront(nil)
+        }
     }
 
     private func setupObservers() {
@@ -27,91 +31,27 @@ class TeamPanelManager {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.updatePanels()
+                let settings = AppSettings.shared
+                if settings.isPanelVisible {
+                    self?.panel?.orderFront(nil)
+                } else {
+                    self?.panel?.orderOut(nil)
+                }
+                let agentCount = AgentsConfigService.shared.agents.count
+                self?.panel?.updateForAgents(count: agentCount)
             }
         }
 
         agentsObserver = AgentsConfigService.shared.$agents
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.updatePanels()
+            .sink { [weak self] agents in
+                self?.panel?.updateForAgents(count: agents.count)
             }
-    }
-
-    private func updatePanels() {
-        let settings = AppSettings.shared
-        let agents = AgentsConfigService.shared.agents
-
-        if settings.layoutMode == .freeform {
-            // 개별 이동 모드
-            groupPanel?.close()
-            groupPanel = nil
-            updateIndividualPanels(agents: agents, settings: settings)
-        } else {
-            // 그룹 모드
-            closeIndividualPanels()
-            updateGroupPanel(agents: agents, settings: settings)
-        }
-    }
-
-    // MARK: - 그룹 패널
-
-    private func updateGroupPanel(agents: [TeamAgent], settings: AppSettings) {
-        if groupPanel == nil {
-            let panel = TeamDockPanel()
-            groupPanel = panel
-        }
-
-        if settings.isPanelVisible {
-            groupPanel?.updateForAgents(count: agents.count)
-            groupPanel?.orderFront(nil)
-        } else {
-            groupPanel?.orderOut(nil)
-        }
-    }
-
-    // MARK: - 개별 패널
-
-    private func updateIndividualPanels(agents: [TeamAgent], settings: AppSettings) {
-        // 삭제된 에이전트 패널 제거
-        let agentIds = Set(agents.map { $0.id })
-        for (id, panel) in individualPanels where !agentIds.contains(id) {
-            panel.close()
-            individualPanels.removeValue(forKey: id)
-        }
-
-        // 에이전트별 패널 생성/업데이트
-        for (index, agent) in agents.enumerated() {
-            if let panel = individualPanels[agent.id] {
-                // 기존 패널 업데이트
-                panel.updateContent(agent: agent, size: settings.characterSize)
-                if settings.isPanelVisible {
-                    panel.orderFront(nil)
-                } else {
-                    panel.orderOut(nil)
-                }
-            } else {
-                // 새 패널 생성
-                let panel = AgentDockPanel(agent: agent, size: settings.characterSize, index: index)
-                individualPanels[agent.id] = panel
-                if settings.isPanelVisible {
-                    panel.orderFront(nil)
-                }
-            }
-        }
-    }
-
-    private func closeIndividualPanels() {
-        for (_, panel) in individualPanels {
-            panel.close()
-        }
-        individualPanels.removeAll()
     }
 
     func teardown() {
-        groupPanel?.close()
-        groupPanel = nil
-        closeIndividualPanels()
+        panel?.close()
+        panel = nil
         if let obs = settingsObserver {
             NotificationCenter.default.removeObserver(obs)
         }
@@ -119,83 +59,7 @@ class TeamPanelManager {
     }
 }
 
-// MARK: - 개별 에이전트 패널
-
-class AgentDockPanel: NSPanel {
-    private var agentId: String
-
-    init(agent: TeamAgent, size: CGFloat, index: Int) {
-        self.agentId = agent.id
-        let panelSize = NSSize(width: size + 28, height: size + max(30, size * 0.25) + 16)
-        super.init(
-            contentRect: NSRect(origin: .zero, size: panelSize),
-            styleMask: [.borderless, .nonactivatingPanel],
-            backing: .buffered,
-            defer: false
-        )
-
-        level = .floating
-        isOpaque = false
-        backgroundColor = .clear
-        hasShadow = false
-        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        isMovableByWindowBackground = true
-        isReleasedWhenClosed = false
-
-        let hostingView = NSHostingView(rootView: AgentCharacterView(agent: agent, size: size))
-        contentView = hostingView
-
-        // 저장된 위치 복원 또는 기본 위치
-        if let saved = loadPosition() {
-            setFrameOrigin(saved)
-        } else {
-            positionDefault(index: index, size: size)
-        }
-    }
-
-    func updateContent(agent: TeamAgent, size: CGFloat) {
-        let panelSize = NSSize(width: size + 28, height: size + max(30, size * 0.25) + 16)
-        setContentSize(panelSize)
-        contentView = NSHostingView(rootView: AgentCharacterView(agent: agent, size: size))
-    }
-
-    // 기본 위치 (Dock 위에 나란히)
-    private func positionDefault(index: Int, size: CGFloat) {
-        guard let screen = NSScreen.main else { return }
-        let visibleFrame = screen.visibleFrame
-        let fullFrame = screen.frame
-        let dockHeight = visibleFrame.origin.y - fullFrame.origin.y
-        let spacing = size + 36
-        let totalWidth = spacing * CGFloat(AgentsConfigService.shared.agents.count)
-        let startX = (fullFrame.width - totalWidth) / 2 + fullFrame.origin.x
-        let x = startX + spacing * CGFloat(index)
-        let y = fullFrame.origin.y + max(dockHeight, 5) + 5
-        setFrameOrigin(NSPoint(x: x, y: y))
-    }
-
-    // 위치 저장
-    override func mouseUp(with event: NSEvent) {
-        super.mouseUp(with: event)
-        savePosition()
-    }
-
-    private func savePosition() {
-        let key = "agentPosition_\(agentId)"
-        let point = frame.origin
-        UserDefaults.standard.set(["x": point.x, "y": point.y], forKey: key)
-    }
-
-    private func loadPosition() -> NSPoint? {
-        let key = "agentPosition_\(agentId)"
-        guard let dict = UserDefaults.standard.dictionary(forKey: key),
-              let x = dict["x"] as? CGFloat,
-              let y = dict["y"] as? CGFloat else { return nil }
-        return NSPoint(x: x, y: y)
-    }
-}
-
-// MARK: - 그룹 Dock 패널
-
+// Dock 위 팀 캐릭터 패널 (NSPanel)
 class TeamDockPanel: NSPanel {
     private let horizontalPadding: CGFloat = 16.0
     private let verticalPadding: CGFloat = 8.0
@@ -223,6 +87,7 @@ class TeamDockPanel: NSPanel {
         hasShadow = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         isMovableByWindowBackground = true
+
         contentView = NSHostingView(rootView: TeamDockView())
         positionAboveDock()
 
@@ -273,10 +138,6 @@ class TeamDockPanel: NSPanel {
             let perCol = Int(ceil(Double(agentCount) / 2.0))
             width = perAgentW * 2 + horizontalPadding * 2
             height = perAgentH * CGFloat(perCol) + 20
-        case .freeform:
-            // 개별 모드에서는 그룹 패널 사용 안함
-            width = 0
-            height = 0
         }
 
         return NSSize(width: min(width, maxWidth), height: min(height, maxHeight))

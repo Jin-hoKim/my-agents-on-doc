@@ -71,9 +71,6 @@ struct TeamDockView: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 10)
             }
-        case .freeform:
-            // 개별 모드에서는 그룹 뷰 사용 안함
-            EmptyView()
         }
     }
 

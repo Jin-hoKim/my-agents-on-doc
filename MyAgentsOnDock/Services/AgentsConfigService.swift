@@ -196,11 +196,14 @@ class AgentsConfigService: ObservableObject {
         saveCustomizations()
     }
 
-    // 에이전트 활성 상태 업데이트
+    // 에이전트 활성 상태 업데이트 (값 변경 시에만 Published 트리거)
     func updateAgentActivity(id: String, isActive: Bool, pid: String? = nil) {
         if let index = agents.firstIndex(where: { $0.id == id }) {
-            agents[index].isActive = isActive
-            agents[index].pid = pid
+            let changed = agents[index].isActive != isActive || agents[index].pid != pid
+            if changed {
+                agents[index].isActive = isActive
+                agents[index].pid = pid
+            }
         }
     }
 
