@@ -18,6 +18,5 @@ let package = Package(
                 .process("Resources"),
             ]
         ),
-        backend
     ]
 )

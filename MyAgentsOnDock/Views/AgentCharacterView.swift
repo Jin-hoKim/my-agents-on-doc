@@ -46,7 +46,6 @@ struct AgentCharacterView: View {
                 .frame(maxWidth: size + 20)
         }
         .frame(width: size + 20, height: size + max(30, size * 0.25))
-        .opacity(agent.isActive ? 1.0 : 0.4)
     }
 
     // 배경 그래디언트
