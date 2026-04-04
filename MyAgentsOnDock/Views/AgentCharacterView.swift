@@ -53,17 +53,25 @@ struct AgentCharacterView: View {
     }
 
     private func handleTap() {
-        let text: String
         if agent.isActive {
             let name = agent.name.isEmpty ? agent.id : agent.name
             let role = agent.roleDescription.isEmpty ? agent.id : agent.roleDescription
-            text = "\(name): \(role) 작업 중이에요! 열심히 하고 있어요 💪"
+            let text = "\(name): \(role) 작업 중이에요! 열심히 하고 있어요 💪"
+            BubbleWindowManager.shared.showBubble(text: text)
+            AgentTTSService.shared.speak(text)
         } else {
-            text = AgentQuotes.random(for: agent)
+            let name = agent.name.isEmpty ? agent.id : agent.name
+            // 로딩 표시
+            BubbleWindowManager.shared.showBubble(text: "\(name): 음... 🤔")
+            // 웹에서 농담 가져오기
+            JokeFetcher.shared.fetchJoke { joke in
+                DispatchQueue.main.async {
+                    let text = "\(name): \(joke)"
+                    BubbleWindowManager.shared.showBubble(text: text)
+                    AgentTTSService.shared.speak(text)
+                }
+            }
         }
-
-        BubbleWindowManager.shared.showBubble(text: text)
-        AgentTTSService.shared.speak(text)
     }
 
     // 배경 그래디언트
@@ -150,7 +158,72 @@ class BubbleWindowManager {
     }
 }
 
-// 에이전트 대기 중 랜덤 대사
+// 무료 API에서 농담 가져오기 (폴백: 로컬 농담)
+class JokeFetcher {
+    static let shared = JokeFetcher()
+
+    // icanhazdadjoke.com (무료, 키 불필요)
+    func fetchJoke(completion: @escaping (String) -> Void) {
+        let apis: [() -> URLRequest] = [
+            { self.dadJokeRequest() },
+            { self.jokeApiRequest() },
+        ]
+
+        // 랜덤 API 선택
+        let request = apis.randomElement()!()
+
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            guard let data = data, error == nil else {
+                completion(AgentQuotes.randomQuote())
+                return
+            }
+
+            if let joke = self.parseDadJoke(data) ?? self.parseJokeApi(data) {
+                completion(joke)
+            } else {
+                completion(AgentQuotes.randomQuote())
+            }
+        }
+        task.resume()
+    }
+
+    // icanhazdadjoke.com
+    private func dadJokeRequest() -> URLRequest {
+        var request = URLRequest(url: URL(string: "https://icanhazdadjoke.com/")!)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("MyAgentsOnDock/1.0", forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 3
+        return request
+    }
+
+    // JokeAPI (Programming, Misc, Pun)
+    private func jokeApiRequest() -> URLRequest {
+        let categories = ["Programming", "Misc", "Pun", "Christmas"]
+        let category = categories.randomElement()!
+        var request = URLRequest(url: URL(string: "https://v2.jokeapi.dev/joke/\(category)?type=single&safe-mode")!)
+        request.timeoutInterval = 3
+        return request
+    }
+
+    private func parseDadJoke(_ data: Data) -> String? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let joke = json["joke"] as? String else { return nil }
+        return joke
+    }
+
+    private func parseJokeApi(_ data: Data) -> String? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        // single type
+        if let joke = json["joke"] as? String { return joke }
+        // twopart type
+        if let setup = json["setup"] as? String, let delivery = json["delivery"] as? String {
+            return "\(setup)\n\(delivery)"
+        }
+        return nil
+    }
+}
+
+// 에이전트 대기 중 랜덤 대사 (네트워크 실패 시 폴백)
 enum AgentQuotes {
     static let idleQuotes: [String] = [
         // 유명 밈 & 인터넷 유머
@@ -201,8 +274,11 @@ enum AgentQuotes {
 
     static func random(for agent: TeamAgent) -> String {
         let name = agent.name.isEmpty ? agent.id : agent.name
-        let quote = idleQuotes.randomElement() ?? "..."
-        return "\(name): \(quote)"
+        return "\(name): \(randomQuote())"
+    }
+
+    static func randomQuote() -> String {
+        idleQuotes.randomElement() ?? "..."
     }
 }
 
