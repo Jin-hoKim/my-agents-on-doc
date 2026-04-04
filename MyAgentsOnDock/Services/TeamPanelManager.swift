@@ -88,7 +88,11 @@ class TeamDockPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         isMovableByWindowBackground = true
 
-        contentView = NSHostingView(rootView: TeamDockView())
+        let hostingView = NSHostingView(rootView: TeamDockView())
+        hostingView.layer?.masksToBounds = false
+        contentView = hostingView
+        contentView?.wantsLayer = true
+        contentView?.layer?.masksToBounds = false
         positionAboveDock()
 
         NotificationCenter.default.addObserver(
@@ -118,7 +122,8 @@ class TeamDockPanel: NSPanel {
         let maxHeight = screen.frame.height * 0.8
 
         let perAgentW: CGFloat = charSize + 28
-        let perAgentH: CGFloat = charSize + max(30, charSize * 0.25) + 16
+        let bubbleSpace: CGFloat = 60  // 말풍선 공간
+        let perAgentH: CGFloat = charSize + max(30, charSize * 0.25) + 16 + bubbleSpace
 
         var width: CGFloat
         var height: CGFloat
