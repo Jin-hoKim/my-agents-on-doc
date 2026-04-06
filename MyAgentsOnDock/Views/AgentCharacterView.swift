@@ -283,22 +283,20 @@ enum AgentQuotes {
 }
 
 // TTS speech service
+@MainActor
 class AgentTTSService {
     static let shared = AgentTTSService()
     private let synthesizer = AVSpeechSynthesizer()
 
     func speak(_ text: String, force: Bool = false) {
-        // Skip if TTS disabled (force=true for preview)
         if !force {
-            let enabled = DispatchQueue.main.sync { AppSettings.shared.ttsEnabled }
-            guard enabled else { return }
+            guard AppSettings.shared.ttsEnabled else { return }
         }
 
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)
         }
 
-        // Read only the content after "name: "
         let content: String
         if let colonRange = text.range(of: ": ") {
             content = String(text[colonRange.upperBound...])
@@ -306,7 +304,7 @@ class AgentTTSService {
             content = text
         }
 
-        let voiceId = DispatchQueue.main.sync { AppSettings.shared.ttsVoiceRaw }
+        let voiceId = AppSettings.shared.ttsVoiceRaw
         let utterance = AVSpeechUtterance(string: content)
         utterance.voice = AVSpeechSynthesisVoice(identifier: voiceId)
             ?? AVSpeechSynthesisVoice(language: "ko-KR")
