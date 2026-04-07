@@ -8,6 +8,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var setupWindow: NSWindow?
     private var settingsWindow: NSWindow?
+    private var guideWindow: NSWindow?
     private var setupObserver: NSObjectProtocol?
     private var settingsObserver: NSObjectProtocol?
 
@@ -95,6 +96,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(makeItem("Connect Team Project", action: #selector(menuOpenSetup)))
         // Settings
         menu.addItem(makeItem("Settings", action: #selector(menuOpenSettings), key: ","))
+        // Guide
+        menu.addItem(makeItem("Getting Started", action: #selector(menuOpenGuide)))
         menu.addItem(.separator())
         // Quit
         menu.addItem(makeItem("Quit", action: #selector(menuQuit), key: "q"))
@@ -120,6 +123,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         openSettingsWindow()
     }
 
+    @objc private func menuOpenGuide() {
+        openGuideWindow()
+    }
+
     @objc private func menuQuit() {
         NSApp.terminate(nil)
     }
@@ -132,6 +139,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         BookmarkService.shared.stopAccessing()
         setupWindow?.close()
         settingsWindow?.close()
+        guideWindow?.close()
         if let obs = setupObserver { NotificationCenter.default.removeObserver(obs) }
         if let obs = settingsObserver { NotificationCenter.default.removeObserver(obs) }
     }
@@ -180,6 +188,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         settingsWindow = window
+    }
+
+    private func openGuideWindow() {
+        if let window = guideWindow, window.isVisible {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        let window = makeWindow(size: NSSize(width: 460, height: 580), title: "Getting Started")
+        window.contentView = NSHostingView(rootView: OnboardingView())
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        guideWindow = window
     }
 
     private func makeWindow(size: NSSize, title: String) -> NSWindow {

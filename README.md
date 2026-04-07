@@ -1,89 +1,106 @@
 # My Agents on Dock
 
-Claude Code 팀(agents.json)을 자동 감지하여 Dock 위에 여러 에이전트 캐릭터를 동적으로 표시하는 macOS 메뉴바 앱.
+A macOS menu bar app that displays animated AI agent characters above your Dock. Automatically detects Claude Code team configurations and shows each agent with unique Lottie-animated robot characters.
 
-## 기능
+## Features
 
-- **자동 팀 감지**: `team/agents.json` 파일을 읽어 에이전트 캐릭터 자동 생성
-- **동적 배치**: 에이전트 수에 따라 패널 너비 자동 조정 (1행/2행)
-- **역할별 이모지**: leader(📋), frontend(⌨️), backend(💻), designer(🎨), qa(🔍), devops(🔧) 등
-- **실시간 상태**: Claude CLI 프로세스 감지로 작업 중 에이전트 하이라이트
-- **FSEvents 감시**: agents.json 변경 시 자동 리로드
+- **9 Animated Characters** — Colorful Lottie robot animations (Black, Blue, Green, Marine, Pink, Purple, Red, White, Yellow)
+- **Team Configuration** — Read `team/agents.json` to auto-detect team structure, or configure directly in Settings
+- **Real-time Status** — Detects running Claude CLI processes; active agents animate 3x faster with green glow
+- **Speech Bubbles** — Click any character for jokes (from free APIs) or work status; TTS voice support with 9 voice options
+- **Flexible Layout** — Single row, single column, double rows, or double columns
+- **Drag to Reorder** — Rearrange characters by dragging; order persists across restarts
+- **Live Reload** — FSEvents watches agents.json for changes and auto-updates
 
-## 요구사항
+## Screenshots
 
-- macOS 14.0 (Sonoma) 이상
-- Xcode 15.0 이상 (빌드 시)
+<!-- Add screenshots here -->
 
-## 설치 및 실행
+## Requirements
+
+- macOS 14.0 (Sonoma) or later
+- Claude Code CLI (for process detection)
+
+## Installation
+
+### Build from Source
 
 ```bash
+git clone https://github.com/Jin-hoKim/my-agents-on-doc.git
 cd my-agents-on-dock
 swift build
 .build/debug/MyAgentsOnDock
 ```
 
-## agents.json 형식
+## Getting Started
+
+1. **Launch the app** — Look for the 👥 icon in your menu bar
+2. **Connect a project** — Click the menu bar icon → "Connect Team Project" → select your project folder containing `team/agents.json`
+3. **Customize characters** — Open Settings to assign robot characters and names to each agent
+4. **Watch your team** — Active agents glow green and animate faster; click them to see status
+
+## agents.json Format
 
 ```json
 {
   "leader": {
     "model": "opus",
-    "description": "PM 재혁 — 요구사항 분석, 팀원 배정",
-    "prompt": "당신은 PM입니다..."
+    "description": "Nova — Team lead, planning"
   },
   "frontend": {
     "model": "sonnet",
-    "description": "개발자 민지 — Vue 3 전문",
-    "prompt": "..."
+    "description": "Sprout — Frontend developer"
+  },
+  "backend": {
+    "model": "sonnet",
+    "description": "Bolt — Backend developer"
   }
 }
 ```
 
-## 역할별 이모지 매핑
+The `description` field uses "Name — Role" format. The name is extracted and displayed under each character.
 
-| 역할 | 이모지 | 역할 | 이모지 |
-|------|--------|------|--------|
-| leader | 📋 | frontend | ⌨️ |
-| backend | 💻 | database | 🗄️ |
-| designer | 🎨 | qa | 🔍 |
-| devops | 🔧 | 기타 | 🤖 |
+## Characters
 
-## 프로젝트 구조
+| Character | Color |
+|-----------|-------|
+| Black Robot | Dark gray |
+| Blue Robot | Blue |
+| Green Robot | Green |
+| Marine Robot | Cyan |
+| Pink Robot | Pink |
+| Purple Robot | Purple |
+| Red Robot | Red |
+| White Robot | Light gray |
+| Yellow Robot | Yellow |
 
-```
-MyAgentsOnDock/
-├── Package.swift
-└── MyAgentsOnDock/
-    ├── main.swift
-    ├── MyAgentsOnDockApp.swift
-    ├── AppDelegate.swift
-    ├── Info.plist
-    ├── MyAgentsOnDock.entitlements
-    ├── Models/
-    │   ├── TeamAgent.swift
-    │   ├── AgentRole.swift
-    │   ├── AgentState.swift
-    │   └── TeamConfiguration.swift
-    ├── Services/
-    │   ├── AppSettings.swift
-    │   ├── BookmarkService.swift
-    │   ├── AgentsConfigService.swift
-    │   ├── ProcessMonitorService.swift
-    │   └── TeamPanelManager.swift
-    └── Views/
-        ├── AgentCharacterView.swift
-        ├── TeamDockView.swift
-        ├── SetupView.swift
-        ├── MenuBarView.swift
-        └── SettingsView.swift
-```
+## Settings
 
-## Solo 모드와의 차이점
+| Setting | Description |
+|---------|-------------|
+| **Character Size** | 60pt – 300pt slider |
+| **Layout** | 1 Row / 1 Col / 2 Rows / 2 Cols |
+| **Team Editing** | Assign characters, edit names per agent |
+| **TTS Voice** | 9 voices (Yuna, Rocko, Grandma, Eddy, etc.) |
+| **Voice Toggle** | Enable/disable speech on click |
+| **Process Monitor** | 1–10 second polling interval |
 
-| 항목 | Solo 모드 | Team 모드 |
-|------|-----------|-----------|
-| 에이전트 수 | 1개 (고정) | N개 (agents.json 기반) |
-| 캐릭터 | 사용자 선택 이모지 | 역할별 자동 매핑 |
-| 상태 감지 | API 호출 기반 | 프로세스 감지 기반 |
-| 설정 | API 키 필요 | 프로젝트 폴더 선택 |
+## Tech Stack
+
+- Swift 5.9+ / SwiftUI / AppKit (NSPanel, NSStatusItem)
+- Lottie for iOS (character animations)
+- AVSpeechSynthesizer (TTS)
+- FSEvents (file change detection)
+- Free joke APIs (icanhazdadjoke.com, JokeAPI)
+
+## Related
+
+- [Docklings](https://github.com/Jin-hoKim/my-agent-on-doc) — Solo mode (single AI companion on Dock)
+
+## License
+
+Copyright 2026 Jin-ho Kim. All rights reserved.
+
+---
+
+[한국어](README-ko.md)
